@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZetsuServ - Enterprise Support Solutions</title>
+    <!-- Link to Microsoft Fluent Design styled CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <!-- Logo/Brand -->
+            <div class="navbar-brand">
+                <h1>ZetsuServ</h1>
+            </div>
+            <!-- Navigation Links -->
+            <ul class="navbar-nav">
+                <li><a href="{{ url_for('home') }}" class="nav-link active">Home</a></li>
+                <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <!-- Main Heading -->
+                <h1 class="hero-title">Enterprise Support Solutions</h1>
+                <!-- Subheading -->
+                <p class="hero-subtitle">
+                    Professional technical support for your business needs. 
+                    Our expert team is here to help you succeed.
+                </p>
+                <!-- Call to Action Button -->
+                <a href="{{ url_for('support') }}" class="btn btn-primary">Contact Support</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="container">
+            <div class="features-grid">
+                <!-- Feature Card 1 -->
+                <div class="card">
+                    <div class="card-icon">📞</div>
+                    <h3 class="card-title">24/7 Support</h3>
+                    <p class="card-text">Round-the-clock assistance for your critical issues</p>
+                </div>
+                <!-- Feature Card 2 -->
+                <div class="card">
+                    <div class="card-icon">⚡</div>
+                    <h3 class="card-title">Fast Response</h3>
+                    <p class="card-text">Quick turnaround time for all support requests</p>
+                </div>
+                <!-- Feature Card 3 -->
+                <div class="card">
+                    <div class="card-icon">👥</div>
+                    <h3 class="card-title">Expert Team</h3>
+                    <p class="card-text">Dedicated professionals with industry expertise</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 ZetsuServ. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
