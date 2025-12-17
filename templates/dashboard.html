@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - ZetsuServ</title>
+    <!-- Link to Microsoft Fluent Design CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <!-- Logo/Brand -->
+            <div class="navbar-brand">
+                <h1>ZetsuServ</h1>
+            </div>
+            <!-- Navigation Links -->
+            <ul class="navbar-nav">
+                <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
+                <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
+                <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link active">Dashboard</a></li>
+                <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Dashboard Header -->
+            <div class="dashboard-header">
+                <h1 class="page-title">Admin Dashboard</h1>
+                <p class="page-subtitle">Manage and respond to support tickets</p>
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ tickets|selectattr('status', 'equalto', 'Open')|list|length }}</div>
+                        <div class="stat-label">Open Tickets</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ tickets|selectattr('status', 'equalto', 'Resolved')|list|length }}</div>
+                        <div class="stat-label">Resolved</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ tickets|length }}</div>
+                        <div class="stat-label">Total Tickets</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Tickets Section -->
+            {% if tickets %}
+                <!-- Desktop View: Data Table -->
+                <div class="tickets-table-container">
+                    <table class="tickets-table">
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Issue Type</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in tickets %}
+                            <tr class="ticket-row" data-ticket-id="{{ ticket.id }}">
+                                <td><strong>{{ ticket.ticket_id }}</strong></td>
+                                <td>{{ ticket.name }}</td>
+                                <td>{{ ticket.email }}</td>
+                                <td>{{ ticket.issue_type }}</td>
+                                <td>
+                                    <span class="badge badge-priority-{{ ticket.priority.lower() }}">
+                                        {{ ticket.priority }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if ticket.status == 'Open' %}
+                                        <span class="badge badge-status-open">Open</span>
+                                    {% else %}
+                                        <span class="badge badge-status-resolved">Resolved</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <button 
+                                        class="btn btn-small btn-view" 
+                                        onclick="toggleTicketDetails({{ ticket.id }})"
+                                    >
+                                        View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr id="details-{{ ticket.id }}" class="ticket-details-row" style="display: none;">
+                                <td colspan="8">
+                                    <div class="ticket-details">
+                                        <div class="ticket-detail-section">
+                                            <h4>Message:</h4>
+                                            <p class="ticket-message">{{ ticket.message }}</p>
+                                        </div>
+                                        
+                                        {% if ticket.attachment_filename %}
+                                        <div class="ticket-detail-section">
+                                            <h4>Attachment:</h4>
+                                            <p>{{ ticket.attachment_filename }}</p>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if ticket.admin_reply %}
+                                        <div class="ticket-detail-section">
+                                            <h4>Admin Reply:</h4>
+                                            <div class="admin-reply-display">
+                                                {{ ticket.admin_reply }}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if ticket.status == 'Open' %}
+                                        <div class="ticket-detail-section">
+                                            <h4>Send Reply:</h4>
+                                            <form method="POST" action="{{ url_for('reply_ticket', ticket_id=ticket.id) }}" class="reply-form">
+                                                <textarea 
+                                                    name="admin_reply" 
+                                                    class="form-textarea" 
+                                                    rows="4" 
+                                                    placeholder="Type your response here..."
+                                                    required
+                                                ></textarea>
+                                                <button type="submit" class="btn btn-primary btn-reply">
+                                                    Send Reply & Mark as Resolved
+                                                </button>
+                                            </form>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile View: Ticket Cards -->
+                <div class="tickets-mobile">
+                    {% for ticket in tickets %}
+                    <div class="ticket-card">
+                        <div class="ticket-card-header">
+                            <div>
+                                <strong class="ticket-id">{{ ticket.ticket_id }}</strong>
+                                {% if ticket.status == 'Open' %}
+                                    <span class="badge badge-status-open">Open</span>
+                                {% else %}
+                                    <span class="badge badge-status-resolved">Resolved</span>
+                                {% endif %}
+                            </div>
+                            <span class="badge badge-priority-{{ ticket.priority.lower() }}">
+                                {{ ticket.priority }}
+                            </span>
+                        </div>
+                        
+                        <div class="ticket-card-body">
+                            <div class="ticket-info-row">
+                                <span class="info-label">Name:</span>
+                                <span class="info-value">{{ ticket.name }}</span>
+                            </div>
+                            <div class="ticket-info-row">
+                                <span class="info-label">Email:</span>
+                                <span class="info-value">{{ ticket.email }}</span>
+                            </div>
+                            <div class="ticket-info-row">
+                                <span class="info-label">Type:</span>
+                                <span class="info-value">{{ ticket.issue_type }}</span>
+                            </div>
+                            <div class="ticket-info-row">
+                                <span class="info-label">Created:</span>
+                                <span class="info-value">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                            </div>
+                            
+                            <div class="ticket-message-preview">
+                                <strong>Message:</strong>
+                                <p>{{ ticket.message }}</p>
+                            </div>
+                            
+                            {% if ticket.attachment_filename %}
+                            <div class="ticket-attachment">
+                                <strong>📎 Attachment:</strong> {{ ticket.attachment_filename }}
+                            </div>
+                            {% endif %}
+                            
+                            {% if ticket.admin_reply %}
+                            <div class="admin-reply-display">
+                                <strong>Admin Reply:</strong>
+                                <p>{{ ticket.admin_reply }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if ticket.status == 'Open' %}
+                        <div class="ticket-card-footer">
+                            <button 
+                                class="btn btn-small btn-expand" 
+                                onclick="toggleReplyForm({{ ticket.id }})"
+                            >
+                                Reply to Ticket
+                            </button>
+                            
+                            <div id="mobile-reply-{{ ticket.id }}" class="mobile-reply-form" style="display: none;">
+                                <form method="POST" action="{{ url_for('reply_ticket', ticket_id=ticket.id) }}">
+                                    <textarea 
+                                        name="admin_reply" 
+                                        class="form-textarea" 
+                                        rows="4" 
+                                        placeholder="Type your response here..."
+                                        required
+                                    ></textarea>
+                                    <button type="submit" class="btn btn-primary btn-block">
+                                        Send Reply & Mark as Resolved
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <h2>No tickets yet</h2>
+                    <p>When users submit support tickets, they will appear here.</p>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by ZetsuServ AI</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for interactive elements -->
+    <script>
+        function toggleTicketDetails(ticketId) {
+            const detailsRow = document.getElementById('details-' + ticketId);
+            if (detailsRow.style.display === 'none') {
+                detailsRow.style.display = 'table-row';
+            } else {
+                detailsRow.style.display = 'none';
+            }
+        }
+        
+        function toggleReplyForm(ticketId) {
+            const replyForm = document.getElementById('mobile-reply-' + ticketId);
+            if (replyForm.style.display === 'none') {
+                replyForm.style.display = 'block';
+            } else {
+                replyForm.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

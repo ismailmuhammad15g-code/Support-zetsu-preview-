@@ -22,6 +22,12 @@
                 <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
                 <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
                 <li><a href="{{ url_for('about') }}" class="nav-link active">About</a></li>
+                {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+                    <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
+                {% else %}
+                    <li><a href="{{ url_for('login') }}" class="nav-link">Login</a></li>
+                {% endif %}
             </ul>
         </div>
     </nav>
