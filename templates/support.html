@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Support - ZetsuServ</title>
-    <!-- Link to Glassmorphism Design CSS -->
+    <!-- Link to Microsoft Fluent Design CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -19,6 +19,9 @@
             <ul class="navbar-nav">
                 <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
                 <li><a href="{{ url_for('support') }}" class="nav-link active">Support</a></li>
+                <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
+                <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
             </ul>
         </div>
     </nav>
@@ -34,25 +37,22 @@
                     <p>Fill out the form below and our team will get back to you shortly</p>
                 </div>
 
-                <!-- Success Message Display -->
-                {% if success_message %}
-                <div class="alert alert-success" role="status" aria-live="polite">
-                    <strong>Success!</strong> {{ success_message }}
-                </div>
-                {% endif %}
-
-                <!-- Error Message Display -->
-                {% if error_message %}
-                <div class="alert alert-error" role="alert" aria-live="assertive">
-                    <strong>Error!</strong> {{ error_message }}
-                </div>
-                {% endif %}
+                <!-- Success/Error Messages Display -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}" role="{% if category == 'error' %}alert{% else %}status{% endif %}" aria-live="{% if category == 'error' %}assertive{% else %}polite{% endif %}">
+                                <strong>{% if category == 'error' %}Error!{% else %}Success!{% endif %}</strong> {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
 
                 <!-- Support Form -->
-                <form action="{{ url_for('submit') }}" method="POST" class="support-form">
+                <form action="{{ url_for('submit') }}" method="POST" enctype="multipart/form-data" class="support-form">
                     <!-- Name Input -->
                     <div class="form-group">
-                        <label for="name" class="form-label">Full Name</label>
+                        <label for="name" class="form-label">Full Name *</label>
                         <input 
                             type="text" 
                             id="name" 
@@ -66,7 +66,7 @@
 
                     <!-- Email Input -->
                     <div class="form-group">
-                        <label for="email" class="form-label">Email Address</label>
+                        <label for="email" class="form-label">Email Address *</label>
                         <input 
                             type="email" 
                             id="email" 
@@ -80,7 +80,7 @@
 
                     <!-- Issue Type Dropdown -->
                     <div class="form-group">
-                        <label for="issue_type" class="form-label">Issue Type</label>
+                        <label for="issue_type" class="form-label">Issue Type *</label>
                         <select id="issue_type" name="issue_type" class="form-select" required>
                             <option value="">Select an issue type</option>
                             <option value="Technical Support">Technical Support</option>
@@ -88,12 +88,25 @@
                             <option value="Feature Request">Feature Request</option>
                             <option value="Bug Report">Bug Report</option>
                             <option value="General Question">General Question</option>
+                            <option value="Account Issue">Account Issue</option>
+                            <option value="Product Inquiry">Product Inquiry</option>
+                        </select>
+                    </div>
+
+                    <!-- Priority Dropdown -->
+                    <div class="form-group">
+                        <label for="priority" class="form-label">Priority *</label>
+                        <select id="priority" name="priority" class="form-select" required>
+                            <option value="Low">Low - General inquiry</option>
+                            <option value="Medium" selected>Medium - Standard support</option>
+                            <option value="High">High - Affecting operations</option>
+                            <option value="Urgent">Urgent - Critical issue</option>
                         </select>
                     </div>
 
                     <!-- Message Textarea -->
                     <div class="form-group">
-                        <label for="message" class="form-label">Message</label>
+                        <label for="message" class="form-label">Message *</label>
                         <textarea 
                             id="message" 
                             name="message" 
@@ -103,6 +116,20 @@
                             maxlength="2000"
                             required
                         ></textarea>
+                        <small style="color: var(--text-disabled); font-size: 12px;">Maximum 2000 characters</small>
+                    </div>
+
+                    <!-- File Attachment -->
+                    <div class="form-group">
+                        <label for="attachment" class="form-label">Attachment (Optional)</label>
+                        <input 
+                            type="file" 
+                            id="attachment" 
+                            name="attachment" 
+                            class="form-input"
+                            accept=".txt,.pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                        >
+                        <small style="color: var(--text-disabled); font-size: 12px;">Allowed: PDF, Images, Documents (Max 5MB)</small>
                     </div>
 
                     <!-- Submit Button -->
