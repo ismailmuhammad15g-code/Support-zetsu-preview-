@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Support - ZetsuServ</title>
-    <!-- Link to Microsoft Fluent Design styled CSS -->
+    <!-- Link to Glassmorphism styled CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -13,7 +13,7 @@
         <div class="container">
             <!-- Logo/Brand -->
             <div class="navbar-brand">
-                <h1>ZetsuServ</h1>
+                <h1>✨ ZetsuServ</h1>
             </div>
             <!-- Navigation Links -->
             <ul class="navbar-nav">
@@ -30,14 +30,14 @@
             <div class="form-card">
                 <!-- Form Header -->
                 <div class="form-header">
-                    <h2>Submit a Support Ticket</h2>
+                    <h2>🎫 Submit a Support Ticket</h2>
                     <p>Fill out the form below and our team will get back to you shortly</p>
                 </div>
 
                 <!-- Success Message Display -->
                 {% if success_message %}
                 <div class="alert alert-success">
-                    <strong>Success!</strong> {{ success_message }}
+                    <strong>✅ Success!</strong> {{ success_message }}
                 </div>
                 {% endif %}
 
@@ -97,7 +97,7 @@
 
                     <!-- Submit Button -->
                     <div class="form-group">
-                        <button type="submit" class="btn btn-primary btn-block">Submit Ticket</button>
+                        <button type="submit" class="btn btn-primary btn-glow btn-block">🚀 Submit Ticket</button>
                     </div>
                 </form>
             </div>
@@ -107,7 +107,7 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>&copy; 2024 ZetsuServ. All rights reserved.</p>
+            <p>&copy; 2024 ZetsuServ. All rights reserved. | <span class="footer-powered">Powered by ZetsuServ AI</span></p>
         </div>
     </footer>
 </body>
