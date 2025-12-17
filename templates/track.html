@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Ticket - ZetsuServ</title>
+    <!-- Link to Microsoft Fluent Design CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <!-- Logo/Brand -->
+            <div class="navbar-brand">
+                <h1>ZetsuServ</h1>
+            </div>
+            <!-- Navigation Links -->
+            <ul class="navbar-nav">
+                <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
+                <li><a href="{{ url_for('track') }}" class="nav-link active">Track Ticket</a></li>
+                <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Track Ticket Section -->
+    <section class="support-section">
+        <div class="container">
+            <div class="form-card">
+                <!-- Page Header -->
+                <div class="form-header">
+                    <h2>Track Your Support Ticket</h2>
+                    <p>Enter your ticket ID or email address to view ticket status</p>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}" role="{% if category == 'error' %}alert{% else %}status{% endif %}">
+                                <strong>{% if category == 'error' %}Error!{% else %}Success!{% endif %}</strong> {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Search Form -->
+                <form action="{{ url_for('search_ticket') }}" method="POST" class="support-form">
+                    <div class="form-group">
+                        <label for="search_query" class="form-label">Ticket ID or Email Address</label>
+                        <input 
+                            type="text" 
+                            id="search_query" 
+                            name="search_query" 
+                            class="form-input" 
+                            placeholder="Enter ticket ID (e.g., ZS-20241217-ABC123) or email"
+                            value="{{ search_query if search_query }}"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary btn-block">Search Tickets</button>
+                    </div>
+                </form>
+
+                <!-- Tickets Display -->
+                {% if tickets %}
+                <div style="margin-top: 32px;">
+                    <h3 style="color: var(--text-primary); font-size: 20px; font-weight: 600; margin-bottom: 20px; border-bottom: 2px solid var(--ms-gray-40); padding-bottom: 12px;">
+                        Found {{ tickets|length }} ticket{% if tickets|length != 1 %}s{% endif %}
+                    </h3>
+
+                    {% for ticket in tickets %}
+                    <div class="card" style="margin-bottom: 20px; padding: 24px;">
+                        <!-- Ticket Header -->
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <h4 style="color: var(--ms-blue); font-size: 18px; font-weight: 600; margin-bottom: 4px;">
+                                    {{ ticket.ticket_id }}
+                                </h4>
+                                <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">
+                                    Submitted {{ ticket.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <!-- Status Badge -->
+                                <span style="
+                                    padding: 6px 12px;
+                                    border-radius: var(--radius-sm);
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    {% if ticket.status == 'Open' %}
+                                        background: #DFF6DD; color: #107C10;
+                                    {% elif ticket.status == 'In Progress' %}
+                                        background: #FFF4CE; color: #FFB900;
+                                    {% elif ticket.status == 'Resolved' %}
+                                        background: #E1DFDD; color: #323130;
+                                    {% else %}
+                                        background: var(--bg-secondary); color: var(--text-secondary);
+                                    {% endif %}
+                                ">
+                                    {{ ticket.status }}
+                                </span>
+                                <!-- Priority Badge -->
+                                <span style="
+                                    padding: 6px 12px;
+                                    border-radius: var(--radius-sm);
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    {% if ticket.priority == 'Urgent' %}
+                                        background: #FDE7E9; color: #A80000;
+                                    {% elif ticket.priority == 'High' %}
+                                        background: #FFF4CE; color: #FFB900;
+                                    {% elif ticket.priority == 'Medium' %}
+                                        background: #E1DFDD; color: #323130;
+                                    {% else %}
+                                        background: var(--bg-secondary); color: var(--text-disabled);
+                                    {% endif %}
+                                ">
+                                    {{ ticket.priority }} Priority
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Ticket Details -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+                            <tr style="border-bottom: 1px solid var(--ms-gray-40);">
+                                <td style="padding: 12px 0; font-weight: 600; color: var(--text-secondary); width: 120px;">Name:</td>
+                                <td style="padding: 12px 0; color: var(--text-primary);">{{ ticket.name }}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--ms-gray-40);">
+                                <td style="padding: 12px 0; font-weight: 600; color: var(--text-secondary);">Email:</td>
+                                <td style="padding: 12px 0; color: var(--text-primary);">{{ ticket.email }}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--ms-gray-40);">
+                                <td style="padding: 12px 0; font-weight: 600; color: var(--text-secondary);">Issue Type:</td>
+                                <td style="padding: 12px 0; color: var(--text-primary);">{{ ticket.issue_type }}</td>
+                            </tr>
+                            {% if ticket.attachment_filename %}
+                            <tr style="border-bottom: 1px solid var(--ms-gray-40);">
+                                <td style="padding: 12px 0; font-weight: 600; color: var(--text-secondary);">Attachment:</td>
+                                <td style="padding: 12px 0; color: var(--text-primary);">📎 {{ ticket.attachment_filename }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+
+                        <!-- Message -->
+                        <div style="background: var(--bg-secondary); border-radius: var(--radius-md); padding: 16px;">
+                            <p style="font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; font-size: 14px;">Message:</p>
+                            <p style="color: var(--text-primary); line-height: 1.6; margin: 0; white-space: pre-wrap;">{{ ticket.message }}</p>
+                        </div>
+
+                        <!-- Last Updated -->
+                        <p style="color: var(--text-disabled); font-size: 12px; margin: 12px 0 0 0; text-align: right;">
+                            Last updated: {{ ticket.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Help Text -->
+                <div style="background: var(--bg-secondary); border-radius: var(--radius-md); padding: 16px; margin-top: 24px;">
+                    <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin: 0;">
+                        <strong>💡 Tip:</strong> Your ticket ID was sent to your email when you submitted your support request. 
+                        If you can't find it, search using your email address to see all your tickets.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by ZetsuServ AI</p>
+        </div>
+    </footer>
+</body>
+</html>

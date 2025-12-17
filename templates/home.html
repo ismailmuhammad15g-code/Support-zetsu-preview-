@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZetsuServ - Enterprise Support Solutions</title>
-    <!-- Link to Glassmorphism Design CSS -->
+    <!-- Link to Microsoft Fluent Design CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -19,6 +19,9 @@
             <ul class="navbar-nav">
                 <li><a href="{{ url_for('home') }}" class="nav-link active">Home</a></li>
                 <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
+                <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
+                <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
             </ul>
         </div>
     </nav>

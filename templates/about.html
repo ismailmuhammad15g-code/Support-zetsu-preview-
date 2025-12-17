@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - ZetsuServ</title>
+    <!-- Link to Microsoft Fluent Design CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <!-- Logo/Brand -->
+            <div class="navbar-brand">
+                <h1>ZetsuServ</h1>
+            </div>
+            <!-- Navigation Links -->
+            <ul class="navbar-nav">
+                <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
+                <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
+                <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link active">About</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- About Section -->
+    <section class="support-section">
+        <div class="container">
+            <div class="form-card" style="max-width: 900px;">
+                <!-- Page Header -->
+                <div class="form-header">
+                    <h2>About ZetsuServ</h2>
+                    <p>Enterprise-grade support solutions powered by innovation</p>
+                </div>
+
+                <!-- Company Info -->
+                <div style="margin-bottom: 32px;">
+                    <h3 style="color: var(--ms-blue); font-size: 20px; font-weight: 600; margin-bottom: 16px;">
+                        Our Mission
+                    </h3>
+                    <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 20px;">
+                        ZetsuServ is dedicated to providing exceptional technical support and customer service solutions for businesses of all sizes. 
+                        We combine cutting-edge AI technology with human expertise to deliver fast, accurate, and personalized support experiences.
+                    </p>
+                </div>
+
+                <!-- What We Offer -->
+                <div style="margin-bottom: 32px;">
+                    <h3 style="color: var(--ms-blue); font-size: 20px; font-weight: 600; margin-bottom: 16px;">
+                        What We Offer
+                    </h3>
+                    <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                        <div style="padding: 20px; background: var(--bg-secondary); border-radius: var(--radius-md); border-left: 4px solid var(--ms-blue);">
+                            <div style="font-size: 32px; margin-bottom: 12px;">🎯</div>
+                            <h4 style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">Ticket Management</h4>
+                            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                                Comprehensive ticket tracking system with priority levels and status updates
+                            </p>
+                        </div>
+                        <div style="padding: 20px; background: var(--bg-secondary); border-radius: var(--radius-md); border-left: 4px solid var(--ms-blue);">
+                            <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
+                            <h4 style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">Fast Response</h4>
+                            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                                24-hour response time for standard tickets, 4 hours for urgent issues
+                            </p>
+                        </div>
+                        <div style="padding: 20px; background: var(--bg-secondary); border-radius: var(--radius-md); border-left: 4px solid var(--ms-blue);">
+                            <div style="font-size: 32px; margin-bottom: 12px;">🔒</div>
+                            <h4 style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">Secure Platform</h4>
+                            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                                Enterprise-grade security with encrypted data storage and transmission
+                            </p>
+                        </div>
+                        <div style="padding: 20px; background: var(--bg-secondary); border-radius: var(--radius-md); border-left: 4px solid var(--ms-blue);">
+                            <div style="font-size: 32px; margin-bottom: 12px;">📊</div>
+                            <h4 style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">Analytics</h4>
+                            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                                Detailed insights and reporting on support ticket metrics
+                            </p>
+                        </div>
+                        <div style="padding: 20px; background: var(--bg-secondary); border-radius: var(--radius-md); border-left: 4px solid var(--ms-blue);">
+                            <div style="font-size: 32px; margin-bottom: 12px;">📧</div>
+                            <h4 style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">Email Notifications</h4>
+                            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                                Automatic email updates for ticket submissions and status changes
+                            </p>
+                        </div>
+                        <div style="padding: 20px; background: var(--bg-secondary); border-radius: var(--radius-md); border-left: 4px solid var(--ms-blue);">
+                            <div style="font-size: 32px; margin-bottom: 12px;">📎</div>
+                            <h4 style="color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">File Attachments</h4>
+                            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                                Support for various file formats to help resolve issues faster
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Technology Stack -->
+                <div style="margin-bottom: 32px;">
+                    <h3 style="color: var(--ms-blue); font-size: 20px; font-weight: 600; margin-bottom: 16px;">
+                        Technology Stack
+                    </h3>
+                    <p style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 16px;">
+                        Built with modern, reliable technologies:
+                    </p>
+                    <ul style="color: var(--text-secondary); line-height: 2; margin-left: 24px;">
+                        <li><strong>Flask</strong> - Python web framework for robust backend</li>
+                        <li><strong>SQLAlchemy</strong> - Database ORM for data management</li>
+                        <li><strong>Microsoft Fluent Design</strong> - Professional UI/UX</li>
+                        <li><strong>SQLite/PostgreSQL</strong> - Flexible database options</li>
+                        <li><strong>SMTP Integration</strong> - Email notification system</li>
+                    </ul>
+                </div>
+
+                <!-- Contact Information -->
+                <div style="background: var(--bg-secondary); border-radius: var(--radius-md); padding: 24px; text-align: center;">
+                    <h3 style="color: var(--text-primary); font-size: 18px; margin-bottom: 12px;">Get in Touch</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                        Ready to experience world-class support? Submit a ticket today!
+                    </p>
+                    <a href="{{ url_for('support') }}" class="btn btn-primary">Contact Support</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by ZetsuServ AI</p>
+        </div>
+    </footer>
+</body>
+</html>
