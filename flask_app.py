@@ -668,7 +668,11 @@ def register():
             return redirect(url_for('register'))
         
         # Whitelist check - only zetsuserv@gmail.com can register
-        if email != 'zetsuserv@gmail.com':
+        # NOTE: This is hardcoded per security requirements to ensure only one specific
+        # admin email can register. To add more admins, modify this list or use an
+        # environment variable with comma-separated emails if needed in the future.
+        ADMIN_WHITELIST = ['zetsuserv@gmail.com']
+        if email not in ADMIN_WHITELIST:
             flash('Access Denied: Admin whitelist only.', 'error')
             return redirect(url_for('register'))
         
@@ -766,7 +770,16 @@ def dashboard():
     # Get all tickets ordered by created_at descending
     tickets = Ticket.query.order_by(Ticket.created_at.desc()).all()
     
-    return render_template('dashboard.html', tickets=tickets)
+    # Calculate statistics
+    open_count = sum(1 for t in tickets if t.status == 'Open')
+    resolved_count = sum(1 for t in tickets if t.status == 'Resolved')
+    total_count = len(tickets)
+    
+    return render_template('dashboard.html', 
+                         tickets=tickets,
+                         open_count=open_count,
+                         resolved_count=resolved_count,
+                         total_count=total_count)
 
 
 @app.route('/reply_ticket/<int:ticket_id>', methods=['POST'])

@@ -37,15 +37,15 @@
                 <p class="page-subtitle">Manage and respond to support tickets</p>
                 <div class="dashboard-stats">
                     <div class="stat-card">
-                        <div class="stat-value">{{ tickets|selectattr('status', 'equalto', 'Open')|list|length }}</div>
+                        <div class="stat-value">{{ open_count }}</div>
                         <div class="stat-label">Open Tickets</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">{{ tickets|selectattr('status', 'equalto', 'Resolved')|list|length }}</div>
+                        <div class="stat-value">{{ resolved_count }}</div>
                         <div class="stat-label">Resolved</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">{{ tickets|length }}</div>
+                        <div class="stat-value">{{ total_count }}</div>
                         <div class="stat-label">Total Tickets</div>
                     </div>
                 </div>
