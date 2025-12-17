@@ -61,9 +61,17 @@ def send_email(user_email, user_name, user_message, issue_type):
     """
     Send email notifications using SMTP.
     Sends notification to admin and confirmation to user.
+    
+    Required environment variables:
+    - ZETSUSERV_EMAIL: The sender email address
+    - ZETSUSERV_PASSWORD: The app password for SMTP authentication
     """
-    sender_email = os.environ.get('ZETSUSERV_EMAIL', 'zetsuserv@gmail.com')
-    password = os.environ.get('ZETSUSERV_PASSWORD', 'omgl ejhx zjew sjky')
+    sender_email = os.environ.get('ZETSUSERV_EMAIL')
+    password = os.environ.get('ZETSUSERV_PASSWORD')
+    
+    if not sender_email or not password:
+        print("Email configuration missing: ZETSUSERV_EMAIL or ZETSUSERV_PASSWORD not set")
+        return False
 
     # Email to Admin (Notification)
     msg_admin = MIMEMultipart()
@@ -127,8 +135,17 @@ def send_email(user_email, user_name, user_message, issue_type):
         server.sendmail(sender_email, user_email, msg_user.as_string())
         server.quit()
         return True
-    except Exception as e:
-        print(f"Error sending email: {e}")
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"SMTP Authentication failed: {e}")
+        return False
+    except smtplib.SMTPConnectError as e:
+        print(f"SMTP Connection failed: {e}")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"SMTP error occurred: {e}")
+        return False
+    except OSError as e:
+        print(f"Network error sending email: {e}")
         return False
 
 
@@ -170,6 +187,7 @@ def submit():
                                success_message="Error: All fields are required. Please fill out the form completely.")
 
     # Save to database
+    db_saved = False
     try:
         db = get_db()
         db.execute(
@@ -177,7 +195,8 @@ def submit():
             (name, email, issue_type, message)
         )
         db.commit()
-    except Exception as e:
+        db_saved = True
+    except sqlite3.Error as e:
         print(f"Database error: {e}")
 
     # Print to console for debugging
@@ -189,6 +208,11 @@ def submit():
     print(f"Issue Type: {issue_type}")
     print(f"Message: {message}")
     print("=" * 50)
+
+    # Handle database failure
+    if not db_saved:
+        return render_template('support.html',
+                               success_message="Error: Unable to save your ticket. Please try again later.")
 
     # Send email notifications
     email_sent = send_email(email, name, message, issue_type)
