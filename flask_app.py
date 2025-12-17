@@ -9,7 +9,7 @@ import os
 import re
 import smtplib
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -90,8 +90,8 @@ class Ticket(db.Model):
     message = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='Open')
     attachment_filename = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     def __repr__(self):
         return f'<Ticket {self.ticket_id}>'
@@ -122,7 +122,7 @@ class FAQ(db.Model):
     answer = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(50), nullable=False)
     order = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     
     def __repr__(self):
         return f'<FAQ {self.question[:50]}>'
@@ -160,7 +160,7 @@ with app.app_context():
 
 def generate_ticket_id():
     """Generate a unique ticket ID"""
-    timestamp = datetime.now().strftime('%Y%m%d')
+    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d')
     random_str = secrets.token_hex(4).upper()
     return f"ZS-{timestamp}-{random_str}"
 
@@ -417,7 +417,7 @@ def submit():
         if file and file.filename and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             # Add timestamp to filename to prevent collisions
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
             attachment_filename = f"{timestamp}_{filename}"
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], attachment_filename))
     
