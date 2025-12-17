@@ -7,6 +7,7 @@ Designed for deployment on PythonAnywhere
 import os
 import re
 import smtplib
+from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, redirect, url_for
@@ -15,15 +16,21 @@ from flask import Flask, render_template, request, redirect, url_for
 app = Flask(__name__)
 
 # Configure Flask app
-# IMPORTANT: Change SECRET_KEY to a secure random value in production
+# IMPORTANT: Set SECRET_KEY via environment variable in production
 # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
-app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-insecure-key-change-in-production')
 
-# Email configuration (use environment variables in production)
+# Email configuration
+# IMPORTANT: Set these via environment variables in production
+# For development/testing only, you can set these in your environment:
+# export SMTP_SERVER=smtp.gmail.com
+# export SMTP_PORT=587
+# export SENDER_EMAIL=zetsuserv@gmail.com
+# export EMAIL_PASSWORD=your-app-password
 SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'zetsuserv@gmail.com')
-EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD', 'omgl ejhx zjew sjky')
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', '')
+EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD', '')
 
 # Allowed issue types for validation
 ALLOWED_ISSUE_TYPES = {
@@ -50,10 +57,21 @@ def send_email(user_email, user_name, user_message, issue_type):
     Sends confirmation to user and notification to admin
     Returns True if successful, False otherwise
     """
+    # Check if email credentials are configured
+    if not SENDER_EMAIL or not EMAIL_PASSWORD:
+        print("Email credentials not configured. Skipping email send.")
+        return False
+    
+    # Escape user input to prevent XSS in emails
+    safe_name = escape(user_name)
+    safe_email = escape(user_email)
+    safe_type = escape(issue_type)
+    safe_message = escape(user_message)
+    
     try:
         # Email to Admin (Notification)
         msg_admin = MIMEMultipart()
-        msg_admin['Subject'] = f"New Ticket: {issue_type} from {user_name}"
+        msg_admin['Subject'] = f"New Ticket: {safe_type} from {safe_name}"
         msg_admin['From'] = SENDER_EMAIL
         msg_admin['To'] = SENDER_EMAIL
         
@@ -61,10 +79,10 @@ def send_email(user_email, user_name, user_message, issue_type):
         <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
             <h3 style="color: #0078D4;">New Support Request</h3>
-            <p><strong>Name:</strong> {user_name}</p>
-            <p><strong>Email:</strong> {user_email}</p>
-            <p><strong>Type:</strong> {issue_type}</p>
-            <p><strong>Message:</strong><br>{user_message}</p>
+            <p><strong>Name:</strong> {safe_name}</p>
+            <p><strong>Email:</strong> {safe_email}</p>
+            <p><strong>Type:</strong> {safe_type}</p>
+            <p><strong>Message:</strong><br>{safe_message}</p>
             <hr>
             <p style="font-size: 12px; color: #666;">Powered by ZetsuServ AI</p>
         </body>
@@ -82,11 +100,11 @@ def send_email(user_email, user_name, user_message, issue_type):
         <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
             <h3 style="color: #0078D4;">Thank You for Contacting ZetsuServ Support</h3>
-            <p>Dear {user_name},</p>
+            <p>Dear {safe_name},</p>
             <p>We have received your support ticket and our team will get back to you shortly.</p>
             <h4>Your Request Details:</h4>
-            <p><strong>Issue Type:</strong> {issue_type}</p>
-            <p><strong>Message:</strong><br>{user_message}</p>
+            <p><strong>Issue Type:</strong> {safe_type}</p>
+            <p><strong>Message:</strong><br>{safe_message}</p>
             <hr>
             <p style="font-size: 12px; color: #666;">Powered by ZetsuServ AI</p>
         </body>
@@ -96,17 +114,20 @@ def send_email(user_email, user_name, user_message, issue_type):
         
         # Connect to SMTP server and send emails
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, EMAIL_PASSWORD)
-        
-        # Send admin notification
-        server.sendmail(SENDER_EMAIL, SENDER_EMAIL, msg_admin.as_string())
-        
-        # Send user confirmation
-        server.sendmail(SENDER_EMAIL, user_email, msg_user.as_string())
-        
-        server.quit()
-        return True
+        try:
+            server.starttls()
+            server.login(SENDER_EMAIL, EMAIL_PASSWORD)
+            
+            # Send admin notification
+            server.sendmail(SENDER_EMAIL, SENDER_EMAIL, msg_admin.as_string())
+            
+            # Send user confirmation
+            server.sendmail(SENDER_EMAIL, user_email, msg_user.as_string())
+            
+            return True
+        finally:
+            # Always close the server connection
+            server.quit()
     except Exception as e:
         print(f"Error sending email: {e}")
         return False
