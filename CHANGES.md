@@ -140,10 +140,10 @@ This release represents a complete transformation of the ZetsuServ Support Porta
 ### Utilities
 - python-dateutil 2.8.2
 - python-dotenv 1.0.0
-- Pillow 10.1.0
+- Pillow 10.3.0 (security patched)
 
 ### Production
-- gunicorn 21.2.0
+- gunicorn 22.0.0 (security patched)
 - Flask-Talisman 1.1.0
 
 ### Development

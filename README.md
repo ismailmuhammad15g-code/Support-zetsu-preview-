@@ -329,8 +329,8 @@ Sample tickets are automatically created when you submit forms. Use the Track Ti
 ### Additional
 - **python-dateutil** (2.8.2) - Date utilities
 - **python-dotenv** (1.0.0) - Environment variables
-- **Pillow** (10.1.0) - Image processing
-- **gunicorn** (21.2.0) - WSGI server
+- **Pillow** (10.3.0) - Image processing (security patched)
+- **gunicorn** (22.0.0) - WSGI server (security patched)
 
 ### Development (Optional)
 - **pytest** (7.4.3) - Testing framework
