@@ -2,7 +2,7 @@
 
 A professional, enterprise-grade Flask web application for comprehensive support ticket management, styled with Microsoft Fluent Design System.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-3.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.7+-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0.0-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -12,22 +12,34 @@ A professional, enterprise-grade Flask web application for comprehensive support
 ### Core Functionality
 - **Professional Landing Page** - Hero section with call-to-action and feature highlights
 - **Support Ticket System** - Complete ticket submission with validation and tracking
+- **Admin Dashboard** - Secure admin panel for managing and responding to tickets
+- **Authentication System** - Flask-Login based authentication with whitelist security
 - **Database Integration** - SQLAlchemy ORM with SQLite/PostgreSQL support
-- **Email Notifications** - Automated confirmation emails with ticket details
+- **Email Notifications** - Automated confirmation emails with ticket details and admin replies
 - **File Attachments** - Support for documents, images, and text files (up to 5MB)
 - **Ticket Tracking** - Search and view tickets by ID or email
 - **FAQ System** - Comprehensive FAQ database with categories
 - **About Page** - Company information and technology stack details
 
+### Admin Features
+- **Secure Login/Registration** - Whitelist-based admin registration (zetsuserv@gmail.com only)
+- **Ticket Management** - View all tickets with real-time statistics
+- **Reply System** - Respond to tickets and automatically mark as resolved
+- **Email Notifications** - Send automated replies to users via email
+- **Status Tracking** - Visual badges for Open (green) and Resolved (gray) tickets
+- **Responsive Dashboard** - Data table on desktop, card layout on mobile
+
 ### Technical Features
 - **Microsoft Fluent Design** - Clean, professional UI with Microsoft design principles
 - **Responsive Design** - Optimized for desktop, tablet, and mobile devices
 - **Server-side Validation** - Comprehensive input validation for security
-- **Database Models** - Ticket and FAQ models with relationships
+- **Database Models** - User, Ticket, and FAQ models with relationships
 - **Priority System** - Low, Medium, High, and Urgent priority levels
 - **Status Tracking** - Open, In Progress, Resolved ticket statuses
 - **Flash Messages** - User-friendly feedback for form submissions
 - **Secure File Upload** - File type and size validation
+- **Password Hashing** - Werkzeug password hashing for secure authentication
+- **Session Management** - Flask-Login session handling with "Remember Me"
 - **Console Logging** - Debug output for ticket submissions
 
 ## 📁 Project Structure
@@ -42,7 +54,10 @@ Support-zetsu-preview-/
 │   ├── support.html         # Support ticket form
 │   ├── track.html           # Ticket tracking page
 │   ├── faq.html             # FAQ page
-│   └── about.html           # About page
+│   ├── about.html           # About page
+│   ├── login.html           # Admin login page
+│   ├── register.html        # Admin registration page
+│   └── dashboard.html       # Admin dashboard
 ├── static/
 │   └── style.css            # Microsoft Fluent Design CSS
 ├── uploads/                 # File attachment storage (auto-created)
@@ -188,6 +203,52 @@ In the Web tab, add static file mappings:
 **Database:**
 - `DATABASE_URL` - Database connection string (default: sqlite:///support_tickets.db)
 
+## 🔐 Admin Setup
+
+### First-Time Admin Registration
+
+1. **Navigate to Registration Page:**
+   - Visit `/register` or click "Login" → "Register here"
+
+2. **Whitelist Validation:**
+   - Only the email `zetsuserv@gmail.com` is allowed to register as admin
+   - Any other email will be rejected with: "Access Denied: Admin whitelist only."
+
+3. **Create Admin Account:**
+   - Enter the whitelisted email: `zetsuserv@gmail.com`
+   - Create a strong password (minimum 8 characters)
+   - Confirm your password
+   - Click "Create Admin Account"
+
+4. **Login:**
+   - After successful registration, you'll be redirected to the login page
+   - Enter your credentials and click "Sign In"
+   - You'll be redirected to the admin dashboard
+
+### Using the Admin Dashboard
+
+**Dashboard Features:**
+- **Statistics Cards:** View Open, Resolved, and Total ticket counts
+- **Ticket Table (Desktop):** Full table view with all ticket details
+- **Ticket Cards (Mobile):** Stacked card layout for mobile devices
+- **Status Badges:** 
+  - Green "Open" badge for unresolved tickets
+  - Gray "Resolved" badge for resolved tickets
+- **Priority Badges:** Color-coded for Low, Medium, High, and Urgent
+
+**Responding to Tickets:**
+1. Click "View" button on any Open ticket
+2. Review the ticket message and details
+3. Type your response in the reply textarea
+4. Click "Send Reply & Mark as Resolved"
+5. The system will:
+   - Save your reply to the database
+   - Update ticket status to "Resolved"
+   - Send an email to the user with your response (if SMTP is configured)
+
+**Logout:**
+- Click "Logout" in the navigation to end your session
+
 ## 📝 Routes & Endpoints
 
 | Route | Method | Description |
@@ -199,6 +260,11 @@ In the Web tab, add static file mappings:
 | `/search_ticket` | POST | Search tickets by ID or email |
 | `/faq` | GET | FAQ page with categories |
 | `/about` | GET | About page |
+| `/login` | GET, POST | Admin login page |
+| `/register` | GET, POST | Admin registration (whitelist only) |
+| `/logout` | GET | Logout and end session |
+| `/dashboard` | GET | Admin dashboard (protected) |
+| `/reply_ticket/<id>` | POST | Reply to ticket and mark resolved (protected) |
 
 ## 🎨 Design System
 
@@ -225,6 +291,15 @@ In the Web tab, add static file mappings:
 
 ## 🗄️ Database Models
 
+### User Model
+```python
+- id: Integer (Primary Key)
+- email: String(254) (Unique)
+- password_hash: String(256)
+- is_admin: Boolean
+- created_at: DateTime
+```
+
 ### Ticket Model
 ```python
 - id: Integer (Primary Key)
@@ -236,6 +311,7 @@ In the Web tab, add static file mappings:
 - message: Text
 - status: String(20) [Open, In Progress, Resolved]
 - attachment_filename: String(255) (Optional)
+- admin_reply: Text (Optional)
 - created_at: DateTime
 - updated_at: DateTime
 ```
@@ -260,6 +336,10 @@ In the Web tab, add static file mappings:
 - ✅ File type and size validation
 - ✅ SQL injection protection (SQLAlchemy ORM)
 - ✅ Email XSS prevention
+- ✅ Password hashing (Werkzeug PBKDF2)
+- ✅ Session management (Flask-Login)
+- ✅ Admin whitelist (zetsuserv@gmail.com only)
+- ✅ Protected routes (@login_required decorator)
 - ⚠️ Debug mode enabled (development only)
 
 ### Production Recommendations
@@ -271,6 +351,7 @@ In the Web tab, add static file mappings:
 6. **Input Validation** - Already implemented
 7. **Database Backups** - Regular automated backups
 8. **Email Security** - Use app-specific passwords
+9. **Session Security** - Configure secure session cookies in production
 
 ## 📊 Features Breakdown
 
@@ -294,17 +375,22 @@ In the Web tab, add static file mappings:
 ## 🧪 Testing
 
 ### Manual Testing Checklist
-- [ ] Home page loads correctly
-- [ ] Navigation links work
-- [ ] Support form submission
-- [ ] Form validation (required fields)
-- [ ] Email format validation
-- [ ] File upload functionality
-- [ ] Ticket tracking by ID
-- [ ] Ticket tracking by email
-- [ ] FAQ page displays correctly
-- [ ] About page displays correctly
-- [ ] Responsive design on mobile
+- [x] Home page loads correctly
+- [x] Navigation links work
+- [x] Support form submission
+- [x] Form validation (required fields)
+- [x] Email format validation
+- [x] File upload functionality
+- [x] Ticket tracking by ID
+- [x] Ticket tracking by email
+- [x] FAQ page displays correctly
+- [x] About page displays correctly
+- [x] Responsive design on mobile
+- [x] Admin registration (whitelist validation)
+- [x] Admin login/logout
+- [x] Admin dashboard access
+- [x] Ticket reply functionality
+- [x] Status update (Open to Resolved)
 - [ ] Email notifications (if configured)
 
 ### Test Data
@@ -321,10 +407,12 @@ Sample tickets are automatically created when you submit forms. Use the Track Ti
 - **Flask-SQLAlchemy** (3.1.1) - Database ORM
 - **SQLAlchemy** (2.0.23) - SQL toolkit
 
-### Forms & Security
+### Authentication & Security
+- **Flask-Login** (0.6.3) - User session management
 - **Flask-WTF** (1.2.1) - Form handling
 - **WTForms** (3.1.1) - Form validation
 - **itsdangerous** (2.1.2) - Security helpers
+- **email-validator** (2.1.1) - Email validation
 
 ### Additional
 - **python-dateutil** (2.8.2) - Date utilities
@@ -341,8 +429,8 @@ Sample tickets are automatically created when you submit forms. Use the Track Ti
 Contributions are welcome! This is a production-ready application with room for enhancements:
 
 ### Potential Enhancements
-- Admin dashboard for ticket management
-- User authentication system
+- ✅ Admin dashboard for ticket management (Implemented)
+- ✅ User authentication system (Implemented)
 - Advanced search and filtering
 - Ticket assignment to team members
 - Internal notes and comments
@@ -376,7 +464,25 @@ For issues, questions, or contributions:
 
 ## 🔄 Changelog
 
-### Version 2.0.0 (Current)
+### Version 3.0.0 (Current)
+- ✨ **NEW:** Flask-Login authentication system
+- ✨ **NEW:** Admin registration with whitelist security (zetsuserv@gmail.com only)
+- ✨ **NEW:** Admin login/logout functionality
+- ✨ **NEW:** Secure admin dashboard with @login_required protection
+- ✨ **NEW:** User model with password hashing
+- ✨ **NEW:** Reply system for responding to tickets
+- ✨ **NEW:** Automatic status update (Open → Resolved)
+- ✨ **NEW:** Admin reply email notifications
+- ✨ **NEW:** Responsive dashboard (table on desktop, cards on mobile)
+- ✨ **NEW:** Visual status badges (green for Open, gray for Resolved)
+- ✨ **NEW:** Priority badges with color coding
+- ✨ **NEW:** Dashboard statistics (Open, Resolved, Total)
+- 🔧 Updated Ticket model with admin_reply column
+- 🔧 Updated all templates with conditional Login/Dashboard/Logout links
+- 🔧 Enhanced CSS with authentication and dashboard styles
+- 📝 Comprehensive README update with admin setup guide
+
+### Version 2.0.0
 - ✨ Complete redesign with Microsoft Fluent Design System
 - ✨ Added SQLAlchemy database integration
 - ✨ Added file upload support
