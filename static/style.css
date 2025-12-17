@@ -427,7 +427,6 @@ body::before {
     outline-offset: 2px;
     border-color: var(--primary-purple);
     background: rgba(255, 255, 255, 0.05);
-    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.25);
 }
 
 .form-textarea {
