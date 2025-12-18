@@ -110,6 +110,7 @@
                 </form>
                 
                 <div class="action-buttons">
+                    <a href="{{ url_for('admin_broadcast') }}" class="btn btn-primary btn-small">📢 Broadcast News</a>
                     <a href="{{ url_for('export_tickets') }}" class="btn btn-success btn-small">📥 Export to CSV</a>
                     <button onclick="bulkResolve()" class="btn btn-warning btn-small">✓ Bulk Resolve Selected</button>
                     <button onclick="clearUnusedAttachments()" class="btn btn-danger btn-small">🗑️ Clear Unused Files</button>

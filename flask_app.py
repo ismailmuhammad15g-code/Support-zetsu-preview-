@@ -1,8 +1,9 @@
 """
-ZetsuServ Support Portal - Flask Application
+ZetsuServ Support Portal - Flask Application v4.0.0
 A professional support portal with Microsoft Fluent Design
-Designed for deployment on PythonAnywhere
-Features: Ticket Management, Database Storage, File Uploads, Admin Dashboard
+Designed for deployment on PythonAnywhere with CPU Optimization
+Features: Open Registration with OTP, Newsletter, Admin Broadcast, Web Push Notifications
+CPU-Optimized for low resource usage on shared hosting
 """
 
 import os
@@ -13,11 +14,13 @@ import smtplib
 import secrets
 import requests
 import logging
-from datetime import datetime, timezone
+import time
+import json
+from datetime import datetime, timezone, timedelta
 from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import CSRFProtect
@@ -101,18 +104,27 @@ TICKET_PRIORITIES = {
     "Urgent"
 }
 
+# CPU Optimization Constants
+BATCH_SIZE = 5  # Process 5 users at a time for notifications/emails
+BATCH_DELAY = 0.5  # Delay between batches in seconds to prevent CPU spikes
+OTP_EXPIRY_MINUTES = 10  # OTP valid for 10 minutes
+OTP_LENGTH = 6  # 6-digit OTP
+
 # ========================================
 # DATABASE MODELS
 # ========================================
 
 class User(UserMixin, db.Model):
-    """Database model for admin users"""
+    """Database model for users (now open registration with OTP verification)"""
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(254), unique=True, nullable=False)
+    email = db.Column(db.String(254), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    is_verified = db.Column(db.Boolean, nullable=False, default=False)
+    newsletter_subscribed = db.Column(db.Boolean, nullable=False, default=False)
+    newsletter_popup_shown = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     
     def __repr__(self):
@@ -180,6 +192,67 @@ class FAQ(db.Model):
         return f'<FAQ {self.question[:50]}>'
 
 
+class OTPVerification(db.Model):
+    """Database model for OTP verification (CPU-optimized with expiry)"""
+    __tablename__ = 'otp_verifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(254), nullable=False, index=True)
+    otp_code = db.Column(db.String(6), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    verified = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f'<OTP {self.email}>'
+    
+    def is_expired(self):
+        """Check if OTP is expired"""
+        return datetime.now(timezone.utc) > self.expires_at
+
+
+class NewsletterSubscription(db.Model):
+    """Database model for newsletter subscriptions"""
+    __tablename__ = 'newsletter_subscriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(254), unique=True, nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    subscribed_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f'<Newsletter {self.email}>'
+
+
+class News(db.Model):
+    """Database model for admin news broadcasts"""
+    __tablename__ = 'news'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    published_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f'<News {self.title}>'
+
+
+class PushSubscription(db.Model):
+    """Database model for Web Push notification subscriptions"""
+    __tablename__ = 'push_subscriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    endpoint = db.Column(db.String(500), unique=True, nullable=False)
+    p256dh_key = db.Column(db.String(500), nullable=False)
+    auth_key = db.Column(db.String(500), nullable=False)
+    subscribed_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    
+    def __repr__(self):
+        return f'<PushSubscription {self.endpoint[:50]}>'
+
+
 # User loader for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
@@ -222,6 +295,98 @@ def generate_ticket_id():
     timestamp = datetime.now(timezone.utc).strftime('%Y%m%d')
     random_str = secrets.token_hex(4).upper()
     return f"ZS-{timestamp}-{random_str}"
+
+
+def generate_otp():
+    """Generate a 6-digit OTP code"""
+    return ''.join([str(secrets.randbelow(10)) for _ in range(OTP_LENGTH)])
+
+
+def send_otp_email(user_email, otp_code):
+    """
+    Send OTP verification email (CPU-optimized)
+    Returns True if successful, False otherwise
+    """
+    if not SENDER_EMAIL or not EMAIL_PASSWORD:
+        logger.info("Email credentials not configured. Skipping OTP email send.")
+        return False
+    
+    safe_email = escape(user_email)
+    safe_otp = escape(otp_code)
+    
+    try:
+        msg = MIMEMultipart()
+        msg['Subject'] = f"Your ZetsuServ Verification Code: {safe_otp}"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = user_email
+        
+        body = f"""
+        <html>
+        <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #201F1E; background-color: #FAF9F8; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <h2 style="color: #0078D4; margin-bottom: 24px;">Welcome to ZetsuServ Support!</h2>
+                <p style="color: #323130; line-height: 1.6;">Your verification code is:</p>
+                
+                <div style="background: #F3F2F1; border-radius: 4px; padding: 20px; margin: 24px 0; text-align: center;">
+                    <h1 style="color: #0078D4; font-size: 48px; letter-spacing: 8px; margin: 0;">{safe_otp}</h1>
+                </div>
+                
+                <p style="color: #323130; line-height: 1.6;">This code will expire in {OTP_EXPIRY_MINUTES} minutes.</p>
+                <p style="color: #605E5C; line-height: 1.6; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
+                
+                <hr style="border: none; border-top: 1px solid #E1DFDD; margin: 24px 0;">
+                <p style="font-size: 12px; color: #A19F9D; text-align: center;">Powered by ZetsuServ Support Portal v4.0.0</p>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(body, 'html'))
+        
+        # Use context manager for automatic cleanup
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SENDER_EMAIL, EMAIL_PASSWORD)
+            server.sendmail(SENDER_EMAIL, user_email, msg.as_string())
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error sending OTP email: {e}")
+        return False
+
+
+def batch_process_users(user_emails, callback_fn, *args, **kwargs):
+    """
+    CPU-optimized batch processing for sending emails/notifications
+    Processes users in batches with delays to prevent CPU spikes
+    
+    Args:
+        user_emails: List of email addresses
+        callback_fn: Function to call for each email
+        *args, **kwargs: Additional arguments for callback
+    
+    Returns:
+        Dictionary with success/failure counts
+    """
+    results = {'success': 0, 'failed': 0}
+    
+    for i in range(0, len(user_emails), BATCH_SIZE):
+        batch = user_emails[i:i + BATCH_SIZE]
+        
+        for email in batch:
+            try:
+                if callback_fn(email, *args, **kwargs):
+                    results['success'] += 1
+                else:
+                    results['failed'] += 1
+            except Exception as e:
+                logger.error(f"Error processing {email}: {e}")
+                results['failed'] += 1
+        
+        # Delay between batches to prevent CPU spikes
+        if i + BATCH_SIZE < len(user_emails):
+            time.sleep(BATCH_DELAY)
+    
+    return results
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
@@ -810,8 +975,8 @@ def submit():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """
-    User registration route with whitelist validation
-    Only zetsuserv@gmail.com can register as admin
+    User registration route with OTP verification (v4.0.0)
+    Open registration - no whitelist required
     """
     # Redirect if already logged in
     if current_user.is_authenticated:
@@ -842,15 +1007,6 @@ def register():
             flash('Password must be at least 8 characters long.', 'error')
             return redirect(url_for('register'))
         
-        # Whitelist check - only zetsuserv@gmail.com can register
-        # NOTE: This is hardcoded per security requirements to ensure only one specific
-        # admin email can register. To add more admins, modify this list or use an
-        # environment variable with comma-separated emails if needed in the future.
-        ADMIN_WHITELIST = ['zetsuserv@gmail.com']
-        if email not in ADMIN_WHITELIST:
-            flash('Access Denied: Admin whitelist only.', 'error')
-            return redirect(url_for('register'))
-        
         # Check if user already exists
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
@@ -858,19 +1014,40 @@ def register():
             return redirect(url_for('register'))
         
         try:
-            # Create new admin user
-            new_user = User(email=email, is_admin=True)
-            new_user.set_password(password)
+            # Generate OTP
+            otp_code = generate_otp()
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
             
-            db.session.add(new_user)
+            # Clean up old OTPs for this email (CPU-optimized)
+            OTPVerification.query.filter_by(email=email).delete()
+            
+            # Create OTP record
+            otp_record = OTPVerification(
+                email=email,
+                otp_code=otp_code,
+                expires_at=expires_at
+            )
+            db.session.add(otp_record)
+            
+            # Store user data temporarily in session
+            session['pending_registration'] = {
+                'email': email,
+                'password': password
+            }
+            
             db.session.commit()
             
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('login'))
+            # Send OTP email
+            if send_otp_email(email, otp_code):
+                flash(f'Verification code sent to {email}. Please check your inbox.', 'success')
+            else:
+                flash(f'Verification code: {otp_code} (Email not configured)', 'info')
+            
+            return redirect(url_for('verify_otp'))
             
         except Exception as e:
             db.session.rollback()
-            print(f"Error creating user: {e}")
+            logger.error(f"Error during registration: {e}")
             flash('An error occurred during registration. Please try again.', 'error')
             return redirect(url_for('register'))
     
@@ -925,6 +1102,174 @@ def logout():
     logout_user()
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('home'))
+
+
+@app.route('/verify_otp', methods=['GET', 'POST'])
+def verify_otp():
+    """
+    OTP verification route (v4.0.0)
+    """
+    # Check if there's pending registration
+    if 'pending_registration' not in session:
+        flash('No pending registration found. Please register first.', 'error')
+        return redirect(url_for('register'))
+    
+    if request.method == 'POST':
+        otp_input = request.form.get('otp', '').strip()
+        
+        if not otp_input:
+            flash('Please enter the verification code.', 'error')
+            return redirect(url_for('verify_otp'))
+        
+        email = session['pending_registration']['email']
+        password = session['pending_registration']['password']
+        
+        # Find OTP record (CPU-optimized query)
+        otp_record = OTPVerification.query.filter_by(
+            email=email,
+            verified=False
+        ).order_by(OTPVerification.created_at.desc()).first()
+        
+        if not otp_record:
+            flash('Verification code not found. Please register again.', 'error')
+            session.pop('pending_registration', None)
+            return redirect(url_for('register'))
+        
+        # Check expiry
+        if otp_record.is_expired():
+            flash('Verification code has expired. Please register again.', 'error')
+            session.pop('pending_registration', None)
+            db.session.delete(otp_record)
+            db.session.commit()
+            return redirect(url_for('register'))
+        
+        # Verify OTP
+        if otp_record.otp_code != otp_input:
+            flash('Invalid verification code. Please try again.', 'error')
+            return redirect(url_for('verify_otp'))
+        
+        try:
+            # Mark OTP as verified
+            otp_record.verified = True
+            
+            # Check if zetsuserv@gmail.com for admin privileges
+            is_admin = (email == 'zetsuserv@gmail.com')
+            
+            # Create user account
+            new_user = User(
+                email=email,
+                is_admin=is_admin,
+                is_verified=True
+            )
+            new_user.set_password(password)
+            
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # Clean up session
+            session.pop('pending_registration', None)
+            
+            flash('Registration successful! Please log in.', 'success')
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error completing registration: {e}")
+            flash('An error occurred during verification. Please try again.', 'error')
+            return redirect(url_for('verify_otp'))
+    
+    return render_template('verify_otp.html', email=session['pending_registration']['email'])
+
+
+@app.route('/subscribe_newsletter', methods=['POST'])
+def subscribe_newsletter():
+    """
+    Newsletter subscription endpoint (v4.0.0)
+    """
+    email = request.form.get('email', '').strip().lower()
+    
+    if not email or not validate_email(email):
+        return jsonify({'success': False, 'message': 'Invalid email address'}), 400
+    
+    try:
+        # Check if already subscribed
+        existing = NewsletterSubscription.query.filter_by(email=email).first()
+        if existing:
+            return jsonify({'success': True, 'message': 'Already subscribed'}), 200
+        
+        # Create subscription
+        user_id = current_user.id if current_user.is_authenticated else None
+        subscription = NewsletterSubscription(email=email, user_id=user_id)
+        db.session.add(subscription)
+        
+        # Update user record if logged in
+        if current_user.is_authenticated:
+            current_user.newsletter_subscribed = True
+            current_user.newsletter_popup_shown = True
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Subscribed successfully!'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error subscribing to newsletter: {e}")
+        return jsonify({'success': False, 'message': 'Subscription failed'}), 500
+
+
+@app.route('/dismiss_newsletter', methods=['POST'])
+@login_required
+def dismiss_newsletter():
+    """
+    Dismiss newsletter popup (v4.0.0)
+    """
+    try:
+        current_user.newsletter_popup_shown = True
+        db.session.commit()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error dismissing newsletter popup: {e}")
+        return jsonify({'success': False}), 500
+
+
+@app.route('/subscribe_push', methods=['POST'])
+def subscribe_push():
+    """
+    Web Push subscription endpoint (v4.0.0)
+    """
+    try:
+        data = request.get_json()
+        endpoint = data.get('endpoint')
+        keys = data.get('keys', {})
+        p256dh = keys.get('p256dh')
+        auth = keys.get('auth')
+        
+        if not all([endpoint, p256dh, auth]):
+            return jsonify({'success': False, 'message': 'Missing subscription data'}), 400
+        
+        # Check if subscription already exists
+        existing = PushSubscription.query.filter_by(endpoint=endpoint).first()
+        if existing:
+            return jsonify({'success': True, 'message': 'Already subscribed'}), 200
+        
+        # Create new subscription
+        user_id = current_user.id if current_user.is_authenticated else None
+        subscription = PushSubscription(
+            user_id=user_id,
+            endpoint=endpoint,
+            p256dh_key=p256dh,
+            auth_key=auth
+        )
+        db.session.add(subscription)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Push notifications enabled'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error subscribing to push: {e}")
+        return jsonify({'success': False, 'message': 'Subscription failed'}), 500
 
 
 # ========================================
@@ -1252,6 +1597,115 @@ def delete_ticket(ticket_id):
         flash('An error occurred while deleting the ticket.', 'error')
     
     return redirect(url_for('dashboard'))
+
+
+@app.route('/admin/broadcast', methods=['GET', 'POST'])
+@login_required
+def admin_broadcast():
+    """
+    Admin broadcast news route (v4.0.0)
+    CPU-optimized batch processing for notifications
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '').strip()
+        
+        if not all([title, content]):
+            flash('Title and content are required.', 'error')
+            return redirect(url_for('admin_broadcast'))
+        
+        try:
+            # Create news item
+            news = News(
+                title=title,
+                content=content,
+                author_id=current_user.id
+            )
+            db.session.add(news)
+            db.session.commit()
+            
+            # Get all newsletter subscribers (CPU-optimized query)
+            subscribers = db.session.query(NewsletterSubscription.email).all()
+            subscriber_emails = [s[0] for s in subscribers]
+            
+            # Send notifications in batches (CPU-safe)
+            if subscriber_emails:
+                results = batch_process_users(
+                    subscriber_emails,
+                    send_news_email,
+                    title,
+                    content
+                )
+                
+                flash(f'News broadcast created! Notifications sent: {results["success"]} success, {results["failed"]} failed.', 'success')
+            else:
+                flash('News broadcast created! No subscribers to notify yet.', 'info')
+            
+            return redirect(url_for('dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error broadcasting news: {e}")
+            flash('An error occurred while broadcasting news.', 'error')
+            return redirect(url_for('admin_broadcast'))
+    
+    # Get recent news
+    recent_news = News.query.order_by(News.published_at.desc()).limit(10).all()
+    subscriber_count = NewsletterSubscription.query.count()
+    push_subscriber_count = PushSubscription.query.count()
+    
+    return render_template('admin/broadcast.html',
+                         recent_news=recent_news,
+                         subscriber_count=subscriber_count,
+                         push_subscriber_count=push_subscriber_count)
+
+
+def send_news_email(user_email, title, content):
+    """
+    Send news broadcast email (CPU-optimized)
+    Returns True if successful, False otherwise
+    """
+    if not SENDER_EMAIL or not EMAIL_PASSWORD:
+        return False
+    
+    safe_email = escape(user_email)
+    safe_title = escape(title)
+    safe_content = escape(content)
+    
+    try:
+        msg = MIMEMultipart()
+        msg['Subject'] = f"ZetsuServ News: {safe_title}"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = user_email
+        
+        body = f"""
+        <html>
+        <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #201F1E; background-color: #FAF9F8; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <h2 style="color: #0078D4; margin-bottom: 24px;">{safe_title}</h2>
+                <p style="color: #323130; line-height: 1.6; white-space: pre-wrap;">{safe_content}</p>
+                
+                <hr style="border: none; border-top: 1px solid #E1DFDD; margin: 24px 0;">
+                <p style="font-size: 12px; color: #A19F9D; text-align: center;">Powered by ZetsuServ Support Portal v4.0.0</p>
+            </div>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(body, 'html'))
+        
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SENDER_EMAIL, EMAIL_PASSWORD)
+            server.sendmail(SENDER_EMAIL, user_email, msg.as_string())
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error sending news email to {user_email}: {e}")
+        return False
 
 
 # Run the application
