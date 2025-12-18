@@ -1182,6 +1182,7 @@ def verify_otp():
 
 
 @app.route('/subscribe_newsletter', methods=['POST'])
+@csrf.exempt  # CSRF exempt for AJAX requests with CSRF token in body
 def subscribe_newsletter():
     """
     Newsletter subscription endpoint (v4.0.0)
@@ -1190,6 +1191,10 @@ def subscribe_newsletter():
     
     if not email or not validate_email(email):
         return jsonify({'success': False, 'message': 'Invalid email address'}), 400
+    
+    # Validate email length
+    if len(email) > 254:
+        return jsonify({'success': False, 'message': 'Email too long'}), 400
     
     try:
         # Check if already subscribed
@@ -1234,19 +1239,28 @@ def dismiss_newsletter():
 
 
 @app.route('/subscribe_push', methods=['POST'])
+@csrf.exempt  # CSRF exempt for JSON API with CORS
 def subscribe_push():
     """
     Web Push subscription endpoint (v4.0.0)
     """
     try:
         data = request.get_json()
-        endpoint = data.get('endpoint')
+        endpoint = data.get('endpoint', '')
         keys = data.get('keys', {})
-        p256dh = keys.get('p256dh')
-        auth = keys.get('auth')
+        p256dh = keys.get('p256dh', '')
+        auth = keys.get('auth', '')
         
         if not all([endpoint, p256dh, auth]):
             return jsonify({'success': False, 'message': 'Missing subscription data'}), 400
+        
+        # Validate lengths to prevent database issues
+        if len(endpoint) > 500:
+            return jsonify({'success': False, 'message': 'Endpoint URL too long'}), 400
+        if len(p256dh) > 500:
+            return jsonify({'success': False, 'message': 'p256dh key too long'}), 400
+        if len(auth) > 500:
+            return jsonify({'success': False, 'message': 'Auth key too long'}), 400
         
         # Check if subscription already exists
         existing = PushSubscription.query.filter_by(endpoint=endpoint).first()
@@ -1616,6 +1630,15 @@ def admin_broadcast():
         
         if not all([title, content]):
             flash('Title and content are required.', 'error')
+            return redirect(url_for('admin_broadcast'))
+        
+        # Validate lengths
+        if len(title) > 200:
+            flash('Title must be 200 characters or less.', 'error')
+            return redirect(url_for('admin_broadcast'))
+        
+        if len(content) > 10000:
+            flash('Content must be 10,000 characters or less.', 'error')
             return redirect(url_for('admin_broadcast'))
         
         try:

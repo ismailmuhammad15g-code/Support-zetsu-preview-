@@ -12,7 +12,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[ServiceWorker] Caching app shell');
         return cache.addAll(urlsToCache);
       })
       .then(() => self.skipWaiting())
@@ -26,7 +25,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -51,8 +49,6 @@ self.addEventListener('fetch', (event) => {
 
 // Push event - handle incoming notifications
 self.addEventListener('push', (event) => {
-  console.log('[ServiceWorker] Push received');
-  
   let data = {
     title: 'ZetsuServ News',
     body: 'You have a new update',
@@ -94,8 +90,6 @@ self.addEventListener('push', (event) => {
 
 // Notification click event - handle user interaction
 self.addEventListener('notificationclick', (event) => {
-  console.log('[ServiceWorker] Notification click:', event.action);
-  
   event.notification.close();
   
   if (event.action === 'view') {
@@ -104,5 +98,3 @@ self.addEventListener('notificationclick', (event) => {
     );
   }
 });
-
-console.log('[ServiceWorker] Loaded');

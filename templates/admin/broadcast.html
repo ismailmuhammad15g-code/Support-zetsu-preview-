@@ -100,8 +100,8 @@
                 <div class="news-list">
                     {% for news in recent_news %}
                     <div class="news-item">
-                        <h3 class="news-title">{{ news.title }}</h3>
-                        <p class="news-content">{{ news.content[:150] }}{% if news.content|length > 150 %}...{% endif %}</p>
+                        <h3 class="news-title">{{ news.title|e }}</h3>
+                        <p class="news-content">{{ news.content[:150]|e }}{% if news.content|length > 150 %}...{% endif %}</p>
                         <p class="news-meta">Published: {{ news.published_at.strftime('%Y-%m-%d %H:%M UTC') }}</p>
                     </div>
                     {% endfor %}
