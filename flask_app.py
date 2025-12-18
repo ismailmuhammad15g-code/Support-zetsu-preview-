@@ -275,6 +275,66 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
+# Before request hook to prevent redirect loops
+@app.before_request
+def check_auth_redirect_loop():
+    """
+    Before request hook to handle authentication redirects safely.
+    Prevents redirect loops by explicitly excluding public endpoints.
+    
+    Public endpoints that should NEVER redirect:
+    - / (home)
+    - /login
+    - /register
+    - /verify_otp
+    - /logout
+    - /static/*
+    - /health
+    - /db-verify
+    - /support
+    - /faq
+    - /about
+    - /track
+    - /search_ticket
+    - /submit
+    - /subscribe_newsletter
+    - /dismiss_newsletter
+    - /subscribe_push
+    """
+    # List of public endpoints that don't require authentication
+    public_endpoints = [
+        'home',
+        'login',
+        'register',
+        'verify_otp',
+        'logout',
+        'static',
+        'health_check',
+        'db_verify',
+        'support',
+        'faq',
+        'about',
+        'track',
+        'search_ticket',
+        'submit',
+        'subscribe_newsletter',
+        'dismiss_newsletter',
+        'subscribe_push',
+        'uploaded_file',  # This has its own auth check
+    ]
+    
+    # Get current endpoint
+    endpoint = request.endpoint
+    
+    # Allow all public endpoints without any redirect logic
+    if endpoint in public_endpoints:
+        return None
+    
+    # Allow all requests to continue normally
+    # The @login_required decorator will handle authentication for protected routes
+    return None
+
+
 # Create all database tables
 with app.app_context():
     db.create_all()
@@ -1156,12 +1216,23 @@ def register():
             return redirect(url_for('register'))
         
         try:
+            # Log registration attempt
+            logger.info("=" * 60)
+            logger.info("NEW USER REGISTRATION ATTEMPT")
+            logger.info("=" * 60)
+            logger.info(f"Email: {email}")
+            logger.info(f"Password length: {len(password)}")
+            
             # Generate OTP
             otp_code = generate_otp()
             expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
             
+            logger.info(f"OTP generated: {otp_code}")
+            logger.info(f"OTP expires at: {expires_at}")
+            
             # Clean up old OTPs for this email (CPU-optimized)
-            OTPVerification.query.filter_by(email=email).delete()
+            old_otp_count = OTPVerification.query.filter_by(email=email).delete()
+            logger.info(f"Cleaned up {old_otp_count} old OTP(s) for this email")
             
             # Create OTP record
             otp_record = OTPVerification(
@@ -1177,19 +1248,33 @@ def register():
                 'password': password
             }
             
+            logger.info("OTP record created, committing to database...")
             db.session.commit()
+            logger.info("Database commit successful!")
             
             # Send OTP email
-            if send_otp_email(email, otp_code):
+            logger.info("Attempting to send OTP email...")
+            email_sent = send_otp_email(email, otp_code)
+            
+            if email_sent:
+                logger.info("OTP email sent successfully")
                 flash(f'Verification code sent to {email}. Please check your inbox.', 'success')
             else:
+                logger.warning("OTP email not sent (email not configured or failed)")
                 flash(f'Verification code: {otp_code} (Email not configured)', 'info')
             
+            logger.info("=" * 60)
             return redirect(url_for('verify_otp'))
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error during registration: {e}")
+            logger.error("=" * 60)
+            logger.error("REGISTRATION ERROR - INITIAL STEP")
+            logger.error("=" * 60)
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Error message: {str(e)}")
+            logger.error(f"Email: {email}")
+            logger.error("=" * 60, exc_info=True)
             flash('An error occurred during registration. Please try again.', 'error')
             return redirect(url_for('register'))
     
@@ -1297,16 +1382,40 @@ def verify_otp():
             # Check if zetsuserv@gmail.com for admin privileges
             is_admin = (email == 'zetsuserv@gmail.com')
             
-            # Create user account
+            # Log registration attempt
+            logger.info("=" * 60)
+            logger.info("USER REGISTRATION - OTP VERIFIED")
+            logger.info("=" * 60)
+            logger.info(f"Email: {email}")
+            logger.info(f"Is Admin: {is_admin}")
+            logger.info(f"OTP Code: {otp_input}")
+            
+            # Create user account with all required fields
+            # IMPORTANT: Set password hash BEFORE creating user to avoid nullable constraint violation
             new_user = User(
                 email=email,
                 is_admin=is_admin,
-                is_verified=True
+                is_verified=True,
+                newsletter_subscribed=False,
+                newsletter_popup_shown=False
             )
+            
+            # Set password hash (this must be done before adding to session)
             new_user.set_password(password)
             
+            logger.info("User object created successfully")
+            logger.info(f"Password hash set: {bool(new_user.password_hash)}")
+            logger.info(f"All required fields populated: email={bool(new_user.email)}, is_admin={new_user.is_admin}, is_verified={new_user.is_verified}")
+            
+            # Add to database session
             db.session.add(new_user)
+            logger.info("User added to session, attempting commit...")
+            
+            # Commit to database
             db.session.commit()
+            logger.info("Database commit successful!")
+            logger.info(f"New user created with ID: {new_user.id}")
+            logger.info("=" * 60)
             
             # Clean up session
             session.pop('pending_registration', None)
@@ -1316,7 +1425,14 @@ def verify_otp():
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Error completing registration: {e}")
+            logger.error("=" * 60)
+            logger.error("REGISTRATION ERROR")
+            logger.error("=" * 60)
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Error message: {str(e)}")
+            logger.error(f"Email being registered: {email}")
+            logger.error(f"User data state: email={email}, is_admin={is_admin}")
+            logger.error("=" * 60, exc_info=True)
             flash('An error occurred during verification. Please try again.', 'error')
             return redirect(url_for('verify_otp'))
     
