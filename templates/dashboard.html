@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="container">
@@ -59,17 +62,6 @@
                 </div>
             </div>
 
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
             <!-- Filter and Actions Section -->
             <div class="dashboard-actions">
                 <form method="GET" action="{{ url_for('dashboard') }}" class="filter-form">
@@ -113,6 +105,38 @@
             </div>
 
             <!-- Tickets Section -->
+            <!-- Skeleton Loader (shown while loading) -->
+            <div id="skeletonLoader" class="skeleton-table" style="display: none;">
+                <div class="skeleton-row">
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                </div>
+                <div class="skeleton-row">
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                </div>
+                <div class="skeleton-row">
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                </div>
+                <div class="skeleton-row">
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                    <div class="skeleton-cell skeleton-loader"></div>
+                </div>
+            </div>
+
             {% if tickets %}
                 <!-- Desktop View: Data Table -->
                 <div class="tickets-table-container">
@@ -368,6 +392,65 @@
             document.body.appendChild(form);
             form.submit();
         }
+    </script>
+
+    <!-- Toast Notification System -->
+    <script>
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            // Icon based on type
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            // Create elements safely
+            const icon = document.createElement('span');
+            icon.className = 'toast-icon';
+            icon.textContent = icons[type] || icons.info;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.className = 'toast-message';
+            messageSpan.textContent = message; // Use textContent to prevent XSS
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'toast-close';
+            closeBtn.textContent = '×';
+            closeBtn.onclick = function() { 
+                toast.classList.add('toast-out'); 
+            };
+            
+            toast.appendChild(icon);
+            toast.appendChild(messageSpan);
+            toast.appendChild(closeBtn);
+            
+            container.appendChild(toast);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.add('toast-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+        
+        // Show flash messages as toasts on page load
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                window.addEventListener('DOMContentLoaded', function() {
+                    {% for category, message in messages %}
+                        showToast({{ message|tojson }}, {{ category|tojson }});
+                    {% endfor %}
+                });
+            {% endif %}
+        {% endwith %}
     </script>
 </body>
 </html>

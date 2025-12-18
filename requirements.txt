@@ -29,6 +29,9 @@ python-dateutil==2.8.2
 # Environment Variables
 python-dotenv==1.0.0
 
+# HTTP Requests for Webhooks
+requests==2.31.0
+
 # File Upload Support
 Pillow==10.1.0
 

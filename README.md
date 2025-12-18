@@ -2,12 +2,21 @@
 
 A professional, enterprise-grade Flask web application for comprehensive support ticket management, styled with Microsoft Fluent Design System.
 
-![Version](https://img.shields.io/badge/version-3.1.0-blue)
+![Version](https://img.shields.io/badge/version-3.2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.7+-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0.0-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🎯 Features
+
+### 🆕 Latest Updates (v3.2.0)
+
+- **🔗 Webhook Integration** - Automated ticket submission to n8n or other automation platforms
+- **🌅 Dynamic Greetings** - Time-aware greetings that change throughout the day
+- **✨ Glassmorphism Toasts** - Modern notification system with smooth animations
+- **🎨 Interactive Animations** - Shimmer effects and enhanced button interactions
+- **📱 Mobile FAB Button** - Floating action button for easy mobile access
+- **⚡ Skeleton Loaders** - Professional loading states for better UX
 
 ### 🎫 Ticket Management System
 
@@ -151,10 +160,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Set environment variables (optional for email):**
+4. **Set environment variables (optional for email and webhook):**
 ```bash
 # Windows
 set SECRET_KEY=your-secret-key-here
+set N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/your-id
 set SMTP_SERVER=smtp.gmail.com
 set SMTP_PORT=587
 set SENDER_EMAIL=your-email@gmail.com
@@ -162,11 +172,14 @@ set EMAIL_PASSWORD=your-app-password
 
 # macOS/Linux
 export SECRET_KEY=your-secret-key-here
+export N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/your-id
 export SMTP_SERVER=smtp.gmail.com
 export SMTP_PORT=587
 export SENDER_EMAIL=your-email@gmail.com
 export EMAIL_PASSWORD=your-app-password
 ```
+
+**Note:** The `N8N_WEBHOOK_URL` is optional (new in v3.2.0). The app works perfectly without it.
 
 5. **Run the application:**
 ```bash
@@ -241,6 +254,10 @@ os.environ['SECRET_KEY'] = 'REPLACE-WITH-YOUR-SECRET-KEY-HERE'
 # Database configuration (SQLite will be created automatically)
 os.environ['DATABASE_URL'] = 'sqlite:///support_tickets.db'
 
+# Optional: Webhook integration for n8n automation (New in v3.2.0)
+# Uncomment and configure if you want webhook automation
+# os.environ['N8N_WEBHOOK_URL'] = 'https://your-n8n-instance.com/webhook/your-webhook-id'
+
 # Optional: Email configuration for notifications
 # Uncomment and configure if you want email features
 # os.environ['SMTP_SERVER'] = 'smtp.gmail.com'
@@ -289,32 +306,100 @@ from flask_app import app as application
 
 #### Common PythonAnywhere Issues & Solutions
 
-**Issue: Application shows "Something went wrong"**
-- Check the **Error log** on the Web tab
-- Most common cause: Incorrect WSGI configuration or missing dependencies
-- Solution: Review WSGI file paths and re-run `pip3 install --user -r requirements.txt`
+**Issue: Application shows "Something went wrong" or blank page**
+- **Cause:** Usually WSGI configuration error or missing dependencies
+- **Solution:**
+  1. Check the **Error log** on the Web tab (look for Python tracebacks)
+  2. Verify WSGI file paths match your actual username
+  3. Ensure all dependencies are installed: `pip3 install --user -r requirements.txt`
+  4. Check that `flask_app.py` has no syntax errors: `python3 -m py_compile flask_app.py`
+  5. Verify SECRET_KEY is set in WSGI file (not "REPLACE-WITH-YOUR-SECRET-KEY-HERE")
 
-**Issue: Static files (CSS) not loading**
-- Check static files mapping is correct
-- Path should be absolute: `/home/yourusername/Support-zetsu-preview-/static/`
-- Click "Reload" after fixing
+**Issue: Static files (CSS) not loading - page has no styling**
+- **Cause:** Static files mapping is incorrect or missing
+- **Solution:**
+  1. Go to Web tab → Static files section
+  2. Verify mapping is exactly: `/static/` → `/home/yourusername/Support-zetsu-preview-/static/`
+  3. Replace `yourusername` with your actual PythonAnywhere username
+  4. Click "Reload" button after fixing
+  5. Hard refresh your browser (Ctrl+Shift+R or Cmd+Shift+R)
 
-**Issue: Database errors**
-- Ensure the uploads directory exists
-- Check file permissions: `ls -la` in your project directory
-- Solution: `chmod 755 ~/Support-zetsu-preview-`
+**Issue: Database errors or "no such table" errors**
+- **Cause:** Database not initialized or permissions issue
+- **Solution:**
+  1. Delete old database: `rm ~/Support-zetsu-preview-/support_tickets.db`
+  2. Reload web app (database will auto-create)
+  3. Ensure uploads directory exists: `mkdir -p ~/Support-zetsu-preview-/uploads`
+  4. Check file permissions: `chmod 755 ~/Support-zetsu-preview-`
 
 **Issue: 504 Gateway Timeout**
-- Usually caused by syntax errors in flask_app.py or WSGI file
-- Check error logs for details
-- Validate Python syntax: `python3 -m py_compile flask_app.py`
+- **Cause:** Python syntax error or infinite loop in code
+- **Solution:**
+  1. Check error logs for Python tracebacks
+  2. Validate syntax: `python3 -m py_compile flask_app.py`
+  3. Check WSGI file for typos or incorrect indentation
+  4. Ensure no infinite loops or blocking operations in code
+
+**Issue: ModuleNotFoundError for 'requests' or other packages (New in v3.2.0)**
+- **Cause:** New dependency not installed
+- **Solution:**
+  1. Open Bash console
+  2. Navigate to project: `cd ~/Support-zetsu-preview-`
+  3. Install: `pip3 install --user requests==2.31.0`
+  4. Or reinstall all: `pip3 install --user -r requirements.txt`
+  5. Reload web app
+
+**Issue: Flash messages not showing as toasts (New in v3.2.0)**
+- **Cause:** JavaScript not loading or browser caching old CSS
+- **Solution:**
+  1. Hard refresh browser (Ctrl+Shift+R)
+  2. Check browser console for JavaScript errors (F12)
+  3. Verify static files are loading correctly
+  4. Clear browser cache completely
+
+**Issue: Webhook not sending data (New in v3.2.0)**
+- **Cause:** N8N_WEBHOOK_URL not configured or invalid URL
+- **Solution:**
+  1. This is optional - app works without webhook
+  2. If needed, add to WSGI file: `os.environ['N8N_WEBHOOK_URL'] = 'https://your-url'`
+  3. Check error log for webhook-related messages
+  4. Verify webhook URL is accessible and accepts POST requests
+  5. PythonAnywhere free tier has limited outbound internet access
 
 #### PythonAnywhere Tips
-- **Free tier limitations:** 512MB storage, one web app, restricted outbound internet
-- **Error logs:** Always check error logs when debugging
-- **Console access:** Use Bash consoles to run commands and test
+
+- **Free tier limitations:** 
+  - 512MB storage space
+  - One web app at a time
+  - Restricted outbound internet (some external services may not work)
+  - CPU seconds limit per day
+  - Note: Webhook integration requires outbound access (may need paid tier)
+
+- **Error logs:** Always check error logs when debugging (Web tab → Log files)
+- **Console access:** Use Bash consoles to run commands, test code, and debug
 - **Database backups:** Download your `.db` file regularly from the Files tab
 - **Custom domain:** Upgrade to paid plan for custom domain support
+- **Performance:** Free tier is suitable for testing; upgrade for production use
+- **Dependencies:** Always use `pip3 install --user` for user-level packages
+- **Reload required:** Click "Reload" button after ANY code or config changes
+
+#### Pre-Deployment Checklist for PythonAnywhere
+
+Before deploying, ensure:
+
+- [ ] All files are uploaded or cloned from GitHub
+- [ ] `requirements.txt` is present in project root
+- [ ] Dependencies installed with `pip3 install --user -r requirements.txt`
+- [ ] WSGI file configured with correct paths and username
+- [ ] SECRET_KEY is set to a secure random value (not default)
+- [ ] Static files mapping configured correctly
+- [ ] `uploads` directory created in project folder
+- [ ] Web app reloaded after configuration
+- [ ] Error logs checked for any issues
+- [ ] Test the homepage loads without errors
+- [ ] Test form submission works
+- [ ] Test admin login works
+- [ ] Test dashboard accessible
 
 ---
 
@@ -532,6 +617,9 @@ Before going live, ensure:
 
 **Required:**
 - `SECRET_KEY` - Flask secret key for sessions (generate with `secrets.token_hex(32)`)
+
+**Optional (for webhook automation):**
+- `N8N_WEBHOOK_URL` - n8n or other webhook URL for automated ticket processing (New in v3.2.0)
 
 **Optional (for email notifications):**
 - `SMTP_SERVER` - SMTP server address (default: smtp.gmail.com)
@@ -771,6 +859,7 @@ Sample tickets are automatically created when you submit forms. Use the Track Ti
 - **email-validator** (2.1.1) - Email validation
 
 ### Additional
+- **requests** (2.31.0) - HTTP library for webhook integration (New in v3.2.0)
 - **python-dateutil** (2.8.2) - Date utilities
 - **python-dotenv** (1.0.0) - Environment variables
 - **Pillow** (10.1.0) - Image processing
@@ -834,7 +923,67 @@ For issues, questions, or contributions:
 
 ## 🔄 Changelog
 
-### Version 3.1.0 (Latest)
+### Version 3.2.0 (Latest - December 2024) 🎉
+
+#### 🚀 New Features
+- ✨ **NEW:** **n8n Webhook Integration** - Automated ticket data submission to external automation platforms
+  - POST ticket data (Name, Email, Issue, Priority) to configurable webhook URL
+  - Configured via `N8N_WEBHOOK_URL` environment variable
+  - Non-blocking with 5-second timeout
+  - Comprehensive error handling (won't crash app if webhook fails)
+  
+- ✨ **NEW:** **Dynamic Time-Based Greeting** - Personalized user experience
+  - 🌅 "Good Morning" (5 AM - 11:59 AM)
+  - ☀️ "Good Afternoon" (12 PM - 5:59 PM)
+  - 🌆 "Good Evening" (6 PM - 9:59 PM)
+  - 🌙 "Good Night" (10 PM - 4:59 AM)
+  - Auto-updates based on user's local time
+  
+- ✨ **NEW:** **Glassmorphism Toast Notifications** - Modern notification system
+  - Replaced traditional Flask flash messages
+  - Beautiful slide-in/slide-out animations
+  - Backdrop blur effect for premium look
+  - Auto-dismiss after 5 seconds with manual close option
+  - Success, error, warning, and info variants
+  
+- ✨ **NEW:** **Interactive Button Animations** - Enhanced UX
+  - Shimmer effect on hover for Submit and Dashboard buttons
+  - Smooth glow animations using CSS keyframes
+  - Enhanced visual feedback throughout the app
+  
+- ✨ **NEW:** **Dashboard Skeleton Loader** - Better perceived performance
+  - CSS-animated loading placeholders
+  - Shows while data is loading
+  - Professional loading state
+  
+- ✨ **NEW:** **Mobile Floating Action Button (FAB)** - Mobile-first design
+  - Persistent support button on mobile devices (≤768px)
+  - Smooth scale animations
+  - Quick access to support form
+
+#### 🔒 Security Enhancements
+- 🔐 **SECURITY:** XSS protection in toast notifications (using `textContent` instead of `innerHTML`)
+- 🔐 **SECURITY:** SSRF protection for webhook URLs
+  - Validates URL format (HTTP/HTTPS only)
+  - Blocks localhost and private IP ranges (10.x, 192.168.x, 172.16.x)
+  - Prevents internal network access
+- 🔐 **SECURITY:** CodeQL scan passed with **0 vulnerabilities**
+
+#### 🎨 UI/UX Improvements
+- 🎨 Enhanced glassmorphism effects with backdrop-filter blur on cards
+- 🎨 Fluent Design emoji icons for time-based greetings
+- 🎨 Smooth animations and transitions throughout
+- 🎨 Professional loading states
+
+#### 📦 Dependencies
+- ➕ Added `requests==2.31.0` for webhook integration
+
+#### 📝 Documentation
+- 📝 **DOCS:** Updated README with Version 3.2.0 changelog
+- 📝 **DOCS:** Added webhook configuration instructions
+- 📝 **DOCS:** Enhanced PythonAnywhere deployment guide with error prevention
+
+### Version 3.1.0
 - ✨ **NEW:** Advanced ticket filtering (status, priority, issue type)
 - ✨ **NEW:** CSV export functionality for all tickets
 - ✨ **NEW:** Bulk resolve operations for multiple tickets

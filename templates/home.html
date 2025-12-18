@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="container">
@@ -34,8 +37,13 @@
     <section class="hero">
         <div class="container">
             <div class="hero-content">
+                <!-- Dynamic Greeting with Icon -->
+                <h1 class="hero-title">
+                    <span id="greetingIcon">🌅</span>
+                    <span id="greetingText">Good Morning</span>
+                </h1>
                 <!-- Main Heading -->
-                <h1 class="hero-title">Enterprise Support Solutions</h1>
+                <h2 class="hero-title" style="font-size: 36px; margin-top: 16px;">Enterprise Support Solutions</h2>
                 <!-- Subheading -->
                 <p class="hero-subtitle">
                     Professional technical support for your business needs. 
@@ -73,11 +81,51 @@
         </div>
     </section>
 
+    <!-- Floating Action Button for Mobile -->
+    <a href="{{ url_for('support') }}" class="fab-support" title="Contact Support">
+        💬
+    </a>
+
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <p>Powered by ZetsuServ AI</p>
         </div>
     </footer>
+
+    <!-- Dynamic Greeting Script -->
+    <script>
+        // Function to update greeting based on time of day
+        function updateGreeting() {
+            const hour = new Date().getHours();
+            const greetingIcon = document.getElementById('greetingIcon');
+            const greetingText = document.getElementById('greetingText');
+            
+            if (hour >= 5 && hour < 12) {
+                // Morning (5 AM - 11:59 AM)
+                greetingIcon.textContent = '🌅';
+                greetingText.textContent = 'Good Morning';
+            } else if (hour >= 12 && hour < 18) {
+                // Afternoon (12 PM - 5:59 PM)
+                greetingIcon.textContent = '☀️';
+                greetingText.textContent = 'Good Afternoon';
+            } else if (hour >= 18 && hour < 22) {
+                // Evening (6 PM - 9:59 PM)
+                greetingIcon.textContent = '🌆';
+                greetingText.textContent = 'Good Evening';
+            } else {
+                // Night (10 PM - 4:59 AM)
+                greetingIcon.textContent = '🌙';
+                greetingText.textContent = 'Good Night';
+            }
+        }
+        
+        // Update greeting on page load
+        updateGreeting();
+        
+        // Update greeting every hour (3600000ms) instead of every minute
+        // Greetings only change hourly, so no need for frequent updates
+        setInterval(updateGreeting, 3600000);
+    </script>
 </body>
 </html>
