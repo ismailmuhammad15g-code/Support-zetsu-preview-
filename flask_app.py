@@ -56,11 +56,19 @@ csrf = CSRFProtect(app)
 
 # Database configuration
 # Absolute path for PythonAnywhere deployment
-# Falls back to relative path for local development
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-    'DATABASE_URL', 
-    'sqlite:////home/Supportzetsu/Support-zetsu-preview-/instance/support_tickets.db'
-)
+# Check if we're on PythonAnywhere by looking for the directory
+pythonwhere_db_path = '/home/Supportzetsu/Support-zetsu-preview-/instance/support_tickets.db'
+if os.path.exists('/home/Supportzetsu/Support-zetsu-preview-'):
+    default_db_uri = f'sqlite:///{pythonwhere_db_path}'
+    # Ensure instance directory exists on PythonAnywhere
+    os.makedirs('/home/Supportzetsu/Support-zetsu-preview-/instance', exist_ok=True)
+else:
+    # Local development - use relative path
+    instance_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
+    os.makedirs(instance_dir, exist_ok=True)
+    default_db_uri = f'sqlite:///{instance_dir}/support_tickets.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', default_db_uri)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # File upload configuration
@@ -230,7 +238,15 @@ class OTPVerification(db.Model):
     
     def is_expired(self):
         """Check if OTP is expired"""
-        return datetime.now(timezone.utc) > self.expires_at
+        # SQLite stores datetimes as naive, so we need to make expires_at timezone-aware
+        # if it isn't already
+        if self.expires_at.tzinfo is None:
+            # Assume stored time is UTC
+            expires_at_utc = self.expires_at.replace(tzinfo=timezone.utc)
+        else:
+            expires_at_utc = self.expires_at
+        
+        return datetime.now(timezone.utc) > expires_at_utc
 
 
 class NewsletterSubscription(db.Model):
