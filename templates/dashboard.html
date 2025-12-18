@@ -48,6 +48,14 @@
                         <div class="stat-value">{{ total_count }}</div>
                         <div class="stat-label">Total Tickets</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ urgent_count }}</div>
+                        <div class="stat-label">Urgent</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ high_count }}</div>
+                        <div class="stat-label">High Priority</div>
+                    </div>
                 </div>
             </div>
 
@@ -62,6 +70,48 @@
                 {% endif %}
             {% endwith %}
 
+            <!-- Filter and Actions Section -->
+            <div class="dashboard-actions">
+                <form method="GET" action="{{ url_for('dashboard') }}" class="filter-form">
+                    <div class="filter-group">
+                        <label for="status">Status:</label>
+                        <select name="status" id="status" class="filter-select">
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                            <option value="Open" {% if status_filter == 'Open' %}selected{% endif %}>Open</option>
+                            <option value="Resolved" {% if status_filter == 'Resolved' %}selected{% endif %}>Resolved</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="priority">Priority:</label>
+                        <select name="priority" id="priority" class="filter-select">
+                            <option value="all" {% if priority_filter == 'all' %}selected{% endif %}>All</option>
+                            {% for priority in ticket_priorities %}
+                                <option value="{{ priority }}" {% if priority_filter == priority %}selected{% endif %}>{{ priority }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="issue_type">Issue Type:</label>
+                        <select name="issue_type" id="issue_type" class="filter-select">
+                            <option value="all" {% if issue_type_filter == 'all' %}selected{% endif %}>All</option>
+                            {% for issue_type in allowed_issue_types %}
+                                <option value="{{ issue_type }}" {% if issue_type_filter == issue_type %}selected{% endif %}>{{ issue_type }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-small">Apply Filters</button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-small">Clear Filters</a>
+                </form>
+                
+                <div class="action-buttons">
+                    <a href="{{ url_for('export_tickets') }}" class="btn btn-success btn-small">📥 Export to CSV</a>
+                    <button onclick="bulkResolve()" class="btn btn-warning btn-small">✓ Bulk Resolve Selected</button>
+                </div>
+            </div>
+
             <!-- Tickets Section -->
             {% if tickets %}
                 <!-- Desktop View: Data Table -->
@@ -69,6 +119,7 @@
                     <table class="tickets-table">
                         <thead>
                             <tr>
+                                <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
                                 <th>Ticket ID</th>
                                 <th>Name</th>
                                 <th>Email</th>
@@ -82,6 +133,11 @@
                         <tbody>
                             {% for ticket in tickets %}
                             <tr class="ticket-row" data-ticket-id="{{ ticket.id }}">
+                                <td>
+                                    {% if ticket.status == 'Open' %}
+                                        <input type="checkbox" class="ticket-checkbox" value="{{ ticket.id }}">
+                                    {% endif %}
+                                </td>
                                 <td><strong>{{ ticket.ticket_id }}</strong></td>
                                 <td>{{ ticket.name }}</td>
                                 <td>{{ ticket.email }}</td>
@@ -109,7 +165,8 @@
                                 </td>
                             </tr>
                             <tr id="details-{{ ticket.id }}" class="ticket-details-row" style="display: none;">
-                                <td colspan="8">
+                                <!-- colspan must match the number of columns in the table header (9 columns: checkbox, ticket ID, name, email, issue type, priority, status, created, actions) -->
+                                <td colspan="9">
                                     <div class="ticket-details">
                                         <div class="ticket-detail-section">
                                             <h4>Message:</h4>
@@ -275,6 +332,41 @@
             } else {
                 replyForm.style.display = 'none';
             }
+        }
+        
+        function toggleSelectAll(checkbox) {
+            const checkboxes = document.querySelectorAll('.ticket-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+        }
+        
+        function bulkResolve() {
+            const checkboxes = document.querySelectorAll('.ticket-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('Please select at least one ticket to resolve.');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to resolve ${checkboxes.length} ticket(s)?`)) {
+                return;
+            }
+            
+            // Create form and submit
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("bulk_resolve") }}';
+            
+            checkboxes.forEach(checkbox => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ticket_ids[]';
+                input.value = checkbox.value;
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
         }
     </script>
 </body>

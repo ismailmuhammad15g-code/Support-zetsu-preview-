@@ -2,45 +2,100 @@
 
 A professional, enterprise-grade Flask web application for comprehensive support ticket management, styled with Microsoft Fluent Design System.
 
-![Version](https://img.shields.io/badge/version-3.0.0-blue)
+![Version](https://img.shields.io/badge/version-3.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.7+-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0.0-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🎯 Features
 
-### Core Functionality
-- **Professional Landing Page** - Hero section with call-to-action and feature highlights
-- **Support Ticket System** - Complete ticket submission with validation and tracking
-- **Admin Dashboard** - Secure admin panel for managing and responding to tickets
-- **Authentication System** - Flask-Login based authentication with whitelist security
-- **Database Integration** - SQLAlchemy ORM with SQLite/PostgreSQL support
-- **Email Notifications** - Automated confirmation emails with ticket details and admin replies
-- **File Attachments** - Support for documents, images, and text files (up to 5MB)
-- **Ticket Tracking** - Search and view tickets by ID or email
-- **FAQ System** - Comprehensive FAQ database with categories
-- **About Page** - Company information and technology stack details
+### 🎫 Ticket Management System
 
-### Admin Features
-- **Secure Login/Registration** - Whitelist-based admin registration (zetsuserv@gmail.com only)
-- **Ticket Management** - View all tickets with real-time statistics
-- **Reply System** - Respond to tickets and automatically mark as resolved
-- **Email Notifications** - Send automated replies to users via email
-- **Status Tracking** - Visual badges for Open (green) and Resolved (gray) tickets
-- **Responsive Dashboard** - Data table on desktop, card layout on mobile
+#### For Users (Public Access)
+- **Submit Support Tickets** - Easy-to-use form with validation
+- **Multiple Issue Types** - Technical Support, Billing, Bug Reports, Feature Requests, etc.
+- **Priority Levels** - Mark tickets as Low, Medium, High, or Urgent
+- **File Attachments** - Upload documents, images, or text files (up to 5MB)
+- **Ticket Tracking** - Search and view your tickets by ID or email
+- **Email Confirmations** - Receive automatic confirmation emails with ticket details
+- **Unique Ticket IDs** - Every ticket gets a unique ID (format: ZS-YYYYMMDD-XXXXXX)
 
-### Technical Features
-- **Microsoft Fluent Design** - Clean, professional UI with Microsoft design principles
-- **Responsive Design** - Optimized for desktop, tablet, and mobile devices
-- **Server-side Validation** - Comprehensive input validation for security
-- **Database Models** - User, Ticket, and FAQ models with relationships
-- **Priority System** - Low, Medium, High, and Urgent priority levels
-- **Status Tracking** - Open, In Progress, Resolved ticket statuses
-- **Flash Messages** - User-friendly feedback for form submissions
-- **Secure File Upload** - File type and size validation
-- **Password Hashing** - Werkzeug password hashing for secure authentication
-- **Session Management** - Flask-Login session handling with "Remember Me"
-- **Console Logging** - Debug output for ticket submissions
+#### For Admins (Protected Access)
+- **Secure Dashboard** - Login-protected admin panel
+- **View All Tickets** - See all submitted tickets in one place
+- **Advanced Filtering** - Filter tickets by status, priority, and issue type
+- **Real-time Statistics** - View counts for Open, Resolved, Urgent, and High Priority tickets
+- **Reply to Tickets** - Respond directly to users and auto-mark as resolved
+- **Bulk Operations** - Select and resolve multiple tickets at once
+- **CSV Export** - Export all ticket data to CSV for reporting
+- **Email Notifications** - Automated email replies to users with your responses
+
+### 🔐 Authentication & Security
+
+- **Whitelist-Based Registration** - Only authorized emails can create admin accounts
+- **Secure Login System** - Password hashing with Werkzeug PBKDF2
+- **Session Management** - Flask-Login with "Remember Me" option
+- **Protected Routes** - Admin pages require authentication
+- **Hidden Login Access** - Login page accessible only via direct URL (no navigation links)
+- **Input Validation** - Server-side validation for all forms
+- **SQL Injection Protection** - SQLAlchemy ORM prevents SQL injection
+- **XSS Protection** - Automatic Jinja2 escaping for all outputs
+
+### 📊 Dashboard Features (Admin Only)
+
+- **Statistics Cards** - Quick overview of ticket metrics
+  - Open Tickets count
+  - Resolved Tickets count
+  - Total Tickets count
+  - Urgent Priority count
+  - High Priority count
+
+- **Filter & Search**
+  - Filter by Status (All, Open, Resolved)
+  - Filter by Priority (All, Low, Medium, High, Urgent)
+  - Filter by Issue Type (All types)
+  - Apply and clear filters easily
+
+- **Bulk Actions**
+  - Select multiple tickets with checkboxes
+  - "Select All" option
+  - Bulk resolve selected tickets
+  - Confirmation dialogs for safety
+
+- **Export Capabilities**
+  - Download all tickets as CSV
+  - Timestamped filenames
+  - Complete ticket data included
+
+- **Responsive Design**
+  - Desktop: Full data table view
+  - Mobile: Card-based layout
+  - Touch-friendly controls
+
+### 🎨 Design & User Experience
+
+- **Microsoft Fluent Design System** - Professional, modern interface
+- **Responsive Layout** - Works on desktop, tablet, and mobile
+- **Color-Coded Badges** - Visual status and priority indicators
+- **Flash Messages** - User-friendly feedback for all actions
+- **Navigation Bar** - Easy access to all pages
+- **Professional Typography** - Segoe UI font family
+
+### 🗄️ Data Management
+
+- **SQLAlchemy ORM** - Modern database integration
+- **SQLite Database** - Default local database (can use PostgreSQL)
+- **Automatic Migrations** - Database tables created automatically
+- **Sample FAQ Data** - Pre-populated FAQ content
+- **File Upload Storage** - Organized uploads directory
+
+### 📧 Email Integration (Optional)
+
+- **SMTP Support** - Send emails via Gmail or other SMTP servers
+- **Ticket Confirmations** - Users receive confirmation emails
+- **Admin Notifications** - Admins notified of new tickets
+- **Reply Notifications** - Users notified when admin responds
+- **HTML Email Templates** - Beautiful, branded email design
 
 ## 📁 Project Structure
 
@@ -123,36 +178,52 @@ python flask_app.py
 http://127.0.0.1:5000
 ```
 
-## 🌐 Production Deployment
+## 🌐 Hosting & Deployment
 
-### PythonAnywhere Deployment
+### Option 1: PythonAnywhere (Recommended - Free Tier Available)
 
-#### Step 1: Upload Files
+PythonAnywhere is the easiest way to host this Flask application with a free tier perfect for testing and small projects.
 
+#### Prerequisites
+- PythonAnywhere account (sign up at [pythonanywhere.com](https://www.pythonanywhere.com))
+- Your project files ready for upload
+
+#### Step-by-Step Deployment
+
+**1. Upload Your Project**
 1. Log in to your PythonAnywhere account
-2. Go to "Files" tab
-3. Upload all project files maintaining the directory structure
-4. Ensure `uploads/` directory is created
+2. Go to the **"Files"** tab
+3. Click **"Upload a file"** and upload your project as a ZIP file, OR
+4. Clone from GitHub:
+   - Open a **Bash console**
+   - Run: `git clone https://github.com/ismailmuhammad15g-code/Support-zetsu-preview-.git`
+   - Navigate: `cd Support-zetsu-preview-`
 
-#### Step 2: Install Dependencies
+**2. Install Dependencies**
+1. Open a **Bash console** from the Consoles tab
+2. Navigate to your project directory:
+   ```bash
+   cd ~/Support-zetsu-preview-
+   ```
+3. Install required packages:
+   ```bash
+   pip3 install --user -r requirements.txt
+   ```
+4. Wait for installation to complete (may take 2-3 minutes)
 
-Open a Bash console and run:
-```bash
-cd ~/Support-zetsu-preview-
-pip3 install --user -r requirements.txt
-```
+**3. Create the Web App**
+1. Go to the **"Web"** tab
+2. Click **"Add a new web app"**
+3. Choose your domain (e.g., `yourusername.pythonanywhere.com`)
+4. Select **"Manual configuration"** (do NOT choose Flask)
+5. Select **Python 3.10** or later
+6. Click through to complete setup
 
-#### Step 3: Create Web App
-
-1. Go to "Web" tab
-2. Click "Add a new web app"
-3. Choose "Manual configuration"
-4. Select Python 3.10 or later
-5. Set the source code directory to `/home/yourusername/Support-zetsu-preview-`
-
-#### Step 4: Configure WSGI
-
-Click on the WSGI configuration file link and replace its contents with:
+**4. Configure WSGI File**
+1. On the Web tab, find the **"Code"** section
+2. Click on the WSGI configuration file link (e.g., `/var/www/yourusername_pythonanywhere_com_wsgi.py`)
+3. Delete all existing content
+4. Paste the following configuration:
 
 ```python
 import sys
@@ -163,11 +234,15 @@ project_home = '/home/yourusername/Support-zetsu-preview-'
 if project_home not in sys.path:
     sys.path.insert(0, project_home)
 
-# Set environment variables
-os.environ['SECRET_KEY'] = 'your-secure-secret-key-here'
+# IMPORTANT: Set your SECRET_KEY - Generate a new one for production!
+# Run in Python console: import secrets; print(secrets.token_hex(32))
+os.environ['SECRET_KEY'] = 'REPLACE-WITH-YOUR-SECRET-KEY-HERE'
+
+# Database configuration (SQLite will be created automatically)
 os.environ['DATABASE_URL'] = 'sqlite:///support_tickets.db'
 
-# Optional: Email configuration
+# Optional: Email configuration for notifications
+# Uncomment and configure if you want email features
 # os.environ['SMTP_SERVER'] = 'smtp.gmail.com'
 # os.environ['SMTP_PORT'] = '587'
 # os.environ['SENDER_EMAIL'] = 'your-email@gmail.com'
@@ -177,17 +252,281 @@ os.environ['DATABASE_URL'] = 'sqlite:///support_tickets.db'
 from flask_app import app as application
 ```
 
-#### Step 5: Configure Static Files
+5. **Replace** `yourusername` with your actual PythonAnywhere username
+6. **Generate and set** a secure SECRET_KEY:
+   - Open a Python console
+   - Run: `import secrets; print(secrets.token_hex(32))`
+   - Copy the output and paste it as your SECRET_KEY
+7. Click **"Save"** at the top
 
-In the Web tab, add static file mappings:
-- URL: `/static/`
-- Directory: `/home/yourusername/Support-zetsu-preview-/static/`
+**5. Configure Static Files**
+1. On the Web tab, scroll to the **"Static files"** section
+2. Click **"Enter path"** and add:
+   - **URL:** `/static/`
+   - **Directory:** `/home/yourusername/Support-zetsu-preview-/static/`
+3. Replace `yourusername` with your actual username
 
-#### Step 6: Reload and Test
+**6. Create Uploads Directory**
+1. Go back to the **"Files"** tab
+2. Navigate to your project directory
+3. Create a new directory called `uploads`
+4. This will store user file attachments
 
-1. Click "Reload" on the Web tab
-2. Visit your PythonAnywhere URL
-3. Test all features
+**7. Launch Your Application**
+1. Go back to the **"Web"** tab
+2. Click the green **"Reload"** button
+3. Wait 10-20 seconds for the reload to complete
+4. Click on your domain link at the top (e.g., `yourusername.pythonanywhere.com`)
+5. Your support portal should now be live! 🎉
+
+**8. Access Admin Panel**
+1. Visit `yourusername.pythonanywhere.com/register`
+2. Register with the whitelisted email: `zetsuserv@gmail.com`
+3. Create a strong password
+4. Go to `yourusername.pythonanywhere.com/login`
+5. Login with your credentials
+6. Access the dashboard to manage tickets
+
+#### Common PythonAnywhere Issues & Solutions
+
+**Issue: Application shows "Something went wrong"**
+- Check the **Error log** on the Web tab
+- Most common cause: Incorrect WSGI configuration or missing dependencies
+- Solution: Review WSGI file paths and re-run `pip3 install --user -r requirements.txt`
+
+**Issue: Static files (CSS) not loading**
+- Check static files mapping is correct
+- Path should be absolute: `/home/yourusername/Support-zetsu-preview-/static/`
+- Click "Reload" after fixing
+
+**Issue: Database errors**
+- Ensure the uploads directory exists
+- Check file permissions: `ls -la` in your project directory
+- Solution: `chmod 755 ~/Support-zetsu-preview-`
+
+**Issue: 504 Gateway Timeout**
+- Usually caused by syntax errors in flask_app.py or WSGI file
+- Check error logs for details
+- Validate Python syntax: `python3 -m py_compile flask_app.py`
+
+#### PythonAnywhere Tips
+- **Free tier limitations:** 512MB storage, one web app, restricted outbound internet
+- **Error logs:** Always check error logs when debugging
+- **Console access:** Use Bash consoles to run commands and test
+- **Database backups:** Download your `.db` file regularly from the Files tab
+- **Custom domain:** Upgrade to paid plan for custom domain support
+
+---
+
+### Option 2: Heroku Deployment
+
+Heroku is a popular Platform-as-a-Service (PaaS) with Git-based deployment.
+
+#### Prerequisites
+- Heroku account (sign up at [heroku.com](https://www.heroku.com))
+- Heroku CLI installed
+- Git installed
+
+#### Deployment Steps
+
+**1. Prepare Your Application**
+
+Create a `Procfile` in your project root:
+```
+web: gunicorn flask_app:app
+```
+
+Create or update `requirements.txt` (already included):
+```bash
+pip freeze > requirements.txt
+```
+
+**2. Create Heroku App**
+```bash
+heroku login
+heroku create your-app-name
+```
+
+**3. Set Environment Variables**
+```bash
+heroku config:set SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+heroku config:set SMTP_SERVER=smtp.gmail.com
+heroku config:set SMTP_PORT=587
+heroku config:set SENDER_EMAIL=your-email@gmail.com
+heroku config:set EMAIL_PASSWORD=your-app-password
+```
+
+**4. Deploy**
+```bash
+git add .
+git commit -m "Deploy to Heroku"
+git push heroku main
+```
+
+**5. Access Your App**
+```bash
+heroku open
+```
+
+---
+
+### Option 3: DigitalOcean / AWS / Google Cloud
+
+For production deployments with full control, use a VPS or cloud platform.
+
+#### General Steps (Ubuntu Server)
+
+**1. Server Setup**
+```bash
+sudo apt update
+sudo apt upgrade -y
+sudo apt install python3 python3-pip nginx supervisor -y
+```
+
+**2. Clone and Setup**
+```bash
+cd /var/www
+sudo git clone https://github.com/ismailmuhammad15g-code/Support-zetsu-preview-.git
+cd Support-zetsu-preview-
+sudo pip3 install -r requirements.txt
+```
+
+**3. Configure Environment**
+Create `/var/www/Support-zetsu-preview-/.env`:
+```bash
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=sqlite:///support_tickets.db
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SENDER_EMAIL=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+```
+
+**4. Setup Gunicorn with Supervisor**
+Create `/etc/supervisor/conf.d/support-portal.conf`:
+```ini
+[program:support-portal]
+directory=/var/www/Support-zetsu-preview-
+command=/usr/local/bin/gunicorn -w 4 -b 127.0.0.1:8000 flask_app:app
+user=www-data
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/support-portal.err.log
+stdout_logfile=/var/log/support-portal.out.log
+```
+
+**5. Configure Nginx**
+Create `/etc/nginx/sites-available/support-portal`:
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /static/ {
+        alias /var/www/Support-zetsu-preview-/static/;
+    }
+}
+```
+
+**6. Enable and Start**
+```bash
+sudo ln -s /etc/nginx/sites-available/support-portal /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start support-portal
+```
+
+---
+
+### Option 4: Docker Deployment (Advanced)
+
+Create a `Dockerfile`:
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+ENV FLASK_APP=flask_app.py
+ENV SECRET_KEY=change-this-in-production
+
+EXPOSE 5000
+
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "flask_app:app"]
+```
+
+Build and run:
+```bash
+docker build -t support-portal .
+docker run -p 5000:5000 -e SECRET_KEY=your-secret-key support-portal
+```
+
+---
+
+### Post-Deployment Checklist
+
+After deploying to any platform, verify:
+
+- [ ] Home page loads correctly
+- [ ] All navigation links work
+- [ ] Can submit a support ticket
+- [ ] Can track tickets by ID and email
+- [ ] Login page accessible at `/login`
+- [ ] Can register admin account (if first time)
+- [ ] Can login and access dashboard
+- [ ] Dashboard shows statistics correctly
+- [ ] Can reply to tickets
+- [ ] Can filter tickets
+- [ ] Can export tickets to CSV
+- [ ] Can bulk resolve tickets
+- [ ] Email notifications working (if configured)
+- [ ] Static files (CSS) loading properly
+- [ ] File uploads working
+- [ ] Mobile responsive design works
+- [ ] No error messages in logs
+
+---
+
+### Security Checklist for Production
+
+Before going live, ensure:
+
+- [ ] `SECRET_KEY` is set to a secure random value
+- [ ] `debug=False` in production (automatic with WSGI)
+- [ ] HTTPS/SSL enabled (automatic on PythonAnywhere)
+- [ ] Change default admin email in whitelist if needed
+- [ ] Strong admin password created
+- [ ] Email credentials secured (use app-specific passwords)
+- [ ] Database file has proper permissions
+- [ ] Regular backups configured
+- [ ] Error logging enabled
+- [ ] Update all dependencies regularly
+
+---
+
+### Accessing Admin Panel
+
+**Login URL:** `your-domain.com/login`
+
+**Note:** The login link is hidden from navigation for security. Users must know the direct URL to access the admin panel.
+
+**First-Time Setup:**
+1. Visit `/register` to create admin account
+2. Use whitelisted email: `zetsuserv@gmail.com` (or modify whitelist in code)
+3. Create strong password (minimum 8 characters)
+4. Login at `/login`
+5. Access dashboard to manage tickets
 
 ### Environment Variables
 
@@ -251,20 +590,37 @@ In the Web tab, add static file mappings:
 
 ## 📝 Routes & Endpoints
 
+### Public Routes (No Authentication Required)
+
 | Route | Method | Description |
 |-------|--------|-------------|
-| `/` | GET | Landing page with hero section |
-| `/support` | GET | Support form page |
-| `/submit` | POST | Form submission handler |
+| `/` | GET | Landing page with hero section and features |
+| `/support` | GET | Support ticket submission form |
+| `/submit` | POST | Handle ticket form submission |
 | `/track` | GET | Ticket tracking page |
-| `/search_ticket` | POST | Search tickets by ID or email |
-| `/faq` | GET | FAQ page with categories |
-| `/about` | GET | About page |
-| `/login` | GET, POST | Admin login page |
-| `/register` | GET, POST | Admin registration (whitelist only) |
-| `/logout` | GET | Logout and end session |
-| `/dashboard` | GET | Admin dashboard (protected) |
-| `/reply_ticket/<id>` | POST | Reply to ticket and mark resolved (protected) |
+| `/search_ticket` | POST | Search tickets by ticket ID or email address |
+| `/faq` | GET | FAQ page with categorized questions |
+| `/about` | GET | About page with company information |
+
+### Authentication Routes (Public Access)
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/login` | GET, POST | Admin login page (hidden from navigation) |
+| `/register` | GET, POST | Admin registration (whitelist only: zetsuserv@gmail.com) |
+| `/logout` | GET | Logout and end admin session |
+
+### Protected Routes (Admin Only - Requires Login)
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/dashboard` | GET | Admin dashboard with all tickets and statistics |
+| `/dashboard?status=Open` | GET | Dashboard filtered by status |
+| `/dashboard?priority=Urgent` | GET | Dashboard filtered by priority |
+| `/dashboard?issue_type=Bug` | GET | Dashboard filtered by issue type |
+| `/reply_ticket/<id>` | POST | Reply to a ticket and mark as resolved |
+| `/export_tickets` | GET | Export all tickets to CSV file |
+| `/bulk_resolve` | POST | Mark multiple selected tickets as resolved |
 
 ## 🎨 Design System
 
@@ -428,17 +784,31 @@ Sample tickets are automatically created when you submit forms. Use the Track Ti
 
 Contributions are welcome! This is a production-ready application with room for enhancements:
 
-### Potential Enhancements
-- ✅ Admin dashboard for ticket management (Implemented)
-- ✅ User authentication system (Implemented)
-- Advanced search and filtering
-- Ticket assignment to team members
-- Internal notes and comments
-- Email templates customization
-- Multi-language support
-- Analytics and reporting
-- Real-time notifications
-- API endpoints for integrations
+### Implemented Features ✅
+- ✅ Admin dashboard for ticket management
+- ✅ User authentication system
+- ✅ Advanced search and filtering (status, priority, issue type)
+- ✅ CSV export for reporting
+- ✅ Bulk operations (resolve multiple tickets)
+- ✅ Hidden admin login for security
+- ✅ Real-time statistics dashboard
+
+### Potential Enhancements 💡
+- 📋 Ticket assignment to team members
+- 💬 Internal notes and comments
+- 🎨 Email templates customization
+- 🌐 Multi-language support (i18n)
+- 📊 Advanced analytics and charts
+- 🔔 Real-time notifications (WebSockets)
+- 🔌 REST API endpoints for integrations
+- 🗂️ Ticket categories and tags
+- ⏱️ SLA (Service Level Agreement) tracking
+- 📱 Mobile app integration
+- 🤖 AI-powered response suggestions
+- 📎 Multiple file attachments per ticket
+- 🔍 Full-text search
+- 📅 Calendar view for tickets
+- 👥 Customer portal for ticket history
 
 ### Development Workflow
 1. Fork the repository
@@ -464,7 +834,21 @@ For issues, questions, or contributions:
 
 ## 🔄 Changelog
 
-### Version 3.0.0 (Current)
+### Version 3.1.0 (Latest)
+- ✨ **NEW:** Advanced ticket filtering (status, priority, issue type)
+- ✨ **NEW:** CSV export functionality for all tickets
+- ✨ **NEW:** Bulk resolve operations for multiple tickets
+- ✨ **NEW:** Enhanced statistics (Urgent and High Priority counts)
+- ✨ **NEW:** Checkbox selection system for tickets
+- ✨ **NEW:** Filter form with Apply/Clear functionality
+- 🔧 **FIXED:** SQLAlchemy 2.0 compatibility issues (login/dashboard crashes)
+- 🔧 **FIXED:** Updated deprecated query methods (User.query.get → db.session.get)
+- 🔐 **SECURITY:** Hidden login links from navigation (accessible via URL only)
+- 🔐 **SECURITY:** Input validation for bulk operations
+- 📝 **DOCS:** Comprehensive README update with deployment guides
+- 📝 **DOCS:** Added hosting instructions for multiple platforms
+
+### Version 3.0.0
 - ✨ **NEW:** Flask-Login authentication system
 - ✨ **NEW:** Admin registration with whitelist security (zetsuserv@gmail.com only)
 - ✨ **NEW:** Admin login/logout functionality

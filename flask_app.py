@@ -7,13 +7,15 @@ Features: Ticket Management, Database Storage, File Uploads, Admin Dashboard
 
 import os
 import re
+import csv
+import io
 import smtplib
 import secrets
 from datetime import datetime, timezone
 from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -165,7 +167,7 @@ class FAQ(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     """Load user by ID for Flask-Login"""
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
 # Create all database tables
@@ -760,26 +762,55 @@ def logout():
 @login_required
 def dashboard():
     """
-    Admin dashboard - view all tickets
+    Admin dashboard - view all tickets with filtering
     Protected route requiring authentication
     """
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
         return redirect(url_for('home'))
     
-    # Get all tickets ordered by created_at descending
-    tickets = Ticket.query.order_by(Ticket.created_at.desc()).all()
+    # Get filter parameters from query string
+    status_filter = request.args.get('status', 'all')
+    priority_filter = request.args.get('priority', 'all')
+    issue_type_filter = request.args.get('issue_type', 'all')
     
-    # Calculate statistics
-    open_count = sum(1 for t in tickets if t.status == 'Open')
-    resolved_count = sum(1 for t in tickets if t.status == 'Resolved')
-    total_count = len(tickets)
+    # Build query with filters
+    query = Ticket.query
+    
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+    
+    if priority_filter != 'all':
+        query = query.filter_by(priority=priority_filter)
+    
+    if issue_type_filter != 'all':
+        query = query.filter_by(issue_type=issue_type_filter)
+    
+    # Get filtered tickets
+    tickets = query.order_by(Ticket.created_at.desc()).all()
+    
+    # Calculate statistics (from all tickets, not filtered)
+    all_tickets = Ticket.query.all()
+    open_count = sum(1 for t in all_tickets if t.status == 'Open')
+    resolved_count = sum(1 for t in all_tickets if t.status == 'Resolved')
+    total_count = len(all_tickets)
+    
+    # Calculate priority statistics
+    urgent_count = sum(1 for t in all_tickets if t.priority == 'Urgent')
+    high_count = sum(1 for t in all_tickets if t.priority == 'High')
     
     return render_template('dashboard.html', 
                          tickets=tickets,
                          open_count=open_count,
                          resolved_count=resolved_count,
-                         total_count=total_count)
+                         total_count=total_count,
+                         urgent_count=urgent_count,
+                         high_count=high_count,
+                         status_filter=status_filter,
+                         priority_filter=priority_filter,
+                         issue_type_filter=issue_type_filter,
+                         allowed_issue_types=ALLOWED_ISSUE_TYPES,
+                         ticket_priorities=TICKET_PRIORITIES)
 
 
 @app.route('/reply_ticket/<int:ticket_id>', methods=['POST'])
@@ -794,7 +825,10 @@ def reply_ticket(ticket_id):
         return redirect(url_for('home'))
     
     # Get the ticket
-    ticket = Ticket.query.get_or_404(ticket_id)
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        flash('Ticket not found.', 'error')
+        return redirect(url_for('dashboard'))
     
     # Get admin reply from form
     admin_reply = request.form.get('admin_reply', '').strip()
@@ -829,6 +863,110 @@ def reply_ticket(ticket_id):
         db.session.rollback()
         print(f"Error replying to ticket: {e}")
         flash('An error occurred while sending the reply. Please try again.', 'error')
+    
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/export_tickets')
+@login_required
+def export_tickets():
+    """
+    Export all tickets to CSV format
+    Admin only route
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    # Get all tickets
+    tickets = Ticket.query.order_by(Ticket.created_at.desc()).all()
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Ticket ID', 'Name', 'Email', 'Issue Type', 'Priority', 
+        'Status', 'Message', 'Admin Reply', 'Attachment', 
+        'Created At', 'Updated At'
+    ])
+    
+    # Write ticket data
+    for ticket in tickets:
+        writer.writerow([
+            ticket.ticket_id,
+            ticket.name,
+            ticket.email,
+            ticket.issue_type,
+            ticket.priority,
+            ticket.status,
+            ticket.message,
+            ticket.admin_reply or '',
+            ticket.attachment_filename or '',
+            ticket.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            ticket.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+        ])
+    
+    # Create response
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': f'attachment; filename=tickets_{datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")}.csv'
+        }
+    )
+
+
+@app.route('/bulk_resolve', methods=['POST'])
+@login_required
+def bulk_resolve():
+    """
+    Mark multiple tickets as resolved
+    Admin only route
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    # Get selected ticket IDs from form
+    ticket_ids = request.form.getlist('ticket_ids[]')
+    
+    if not ticket_ids:
+        flash('No tickets selected.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    # Validate ticket IDs are integers
+    valid_ticket_ids = []
+    for ticket_id in ticket_ids:
+        try:
+            valid_ticket_ids.append(int(ticket_id))
+        except (ValueError, TypeError):
+            # Skip invalid ticket IDs
+            continue
+    
+    if not valid_ticket_ids:
+        flash('No valid tickets selected.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        # Update all selected tickets
+        count = 0
+        for ticket_id in valid_ticket_ids:
+            ticket = db.session.get(Ticket, ticket_id)
+            if ticket and ticket.status == 'Open':
+                ticket.status = 'Resolved'
+                ticket.updated_at = datetime.now(timezone.utc)
+                count += 1
+        
+        db.session.commit()
+        flash(f'Successfully resolved {count} ticket(s).', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error in bulk resolve: {e}")
+        flash('An error occurred while resolving tickets.', 'error')
     
     return redirect(url_for('dashboard'))
 
