@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="container">
@@ -40,17 +43,6 @@
                     <h2>Submit a Support Ticket</h2>
                     <p>Fill out the form below and our team will get back to you shortly</p>
                 </div>
-
-                <!-- Success/Error Messages Display -->
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}" role="{% if category == 'error' %}alert{% else %}status{% endif %}" aria-live="{% if category == 'error' %}assertive{% else %}polite{% endif %}">
-                                <strong>{% if category == 'error' %}Error!{% else %}Success!{% endif %}</strong> {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
 
                 <!-- Support Form -->
                 <form action="{{ url_for('submit') }}" method="POST" enctype="multipart/form-data" class="support-form">
@@ -151,5 +143,50 @@
             <p>Powered by ZetsuServ AI</p>
         </div>
     </footer>
+
+    <!-- Toast Notification System -->
+    <script>
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            // Icon based on type
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.classList.add('toast-out')">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.add('toast-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+        
+        // Show flash messages as toasts on page load
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                window.addEventListener('DOMContentLoaded', function() {
+                    {% for category, message in messages %}
+                        showToast({{ message|tojson }}, {{ category|tojson }});
+                    {% endfor %}
+                });
+            {% endif %}
+        {% endwith %}
+    </script>
 </body>
 </html>

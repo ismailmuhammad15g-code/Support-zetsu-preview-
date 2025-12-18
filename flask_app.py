@@ -11,6 +11,7 @@ import csv
 import io
 import smtplib
 import secrets
+import requests
 from datetime import datetime, timezone
 from html import escape
 from email.mime.text import MIMEText
@@ -64,6 +65,9 @@ SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', '')
 EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD', '')
+
+# n8n Webhook configuration for automation
+N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', '')
 
 # Allowed issue types for validation
 ALLOWED_ISSUE_TYPES = {
@@ -441,6 +445,57 @@ def send_admin_reply_email(user_email, user_name, ticket_id, original_message, a
         print(f"Error sending admin reply email: {e}")
         return False
 
+
+def send_to_webhook(ticket_data):
+    """
+    Send ticket data to n8n webhook for automation
+    Args:
+        ticket_data: Dictionary containing ticket information
+    Returns:
+        True if successful, False otherwise
+    """
+    # Check if webhook URL is configured
+    if not N8N_WEBHOOK_URL:
+        print("N8N_WEBHOOK_URL not configured. Skipping webhook send.")
+        return False
+    
+    try:
+        # Prepare payload for webhook
+        payload = {
+            'name': ticket_data.get('name'),
+            'email': ticket_data.get('email'),
+            'issue_type': ticket_data.get('issue_type'),
+            'priority': ticket_data.get('priority'),
+            'message': ticket_data.get('message'),
+            'ticket_id': ticket_data.get('ticket_id'),
+            'timestamp': ticket_data.get('timestamp')
+        }
+        
+        # Send POST request to webhook with timeout
+        response = requests.post(
+            N8N_WEBHOOK_URL,
+            json=payload,
+            timeout=5  # 5 second timeout to prevent hanging
+        )
+        
+        # Check if request was successful
+        if response.status_code in [200, 201, 202]:
+            print(f"Successfully sent ticket {ticket_data.get('ticket_id')} to webhook")
+            return True
+        else:
+            print(f"Webhook returned status code {response.status_code}")
+            return False
+            
+    except requests.exceptions.Timeout:
+        print("Webhook request timed out")
+        return False
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending to webhook: {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error in webhook send: {e}")
+        return False
+
 # ========================================
 # ROUTES
 # ========================================
@@ -615,6 +670,22 @@ def submit():
         
         # Send email notifications
         email_sent = send_email(email, name, message, issue_type, ticket_id, priority)
+        
+        # Send to n8n webhook (non-blocking, won't crash app on failure)
+        try:
+            webhook_data = {
+                'ticket_id': ticket_id,
+                'name': name,
+                'email': email,
+                'issue_type': issue_type,
+                'priority': priority,
+                'message': message,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            send_to_webhook(webhook_data)
+        except Exception as webhook_error:
+            # Log error but don't crash the app
+            print(f"Webhook integration error (non-critical): {webhook_error}")
         
         if email_sent:
             flash(f'Thank you, {name}! Your ticket {ticket_id} has been submitted successfully. We\'ve sent a confirmation to {email}.', 'success')
