@@ -20,6 +20,7 @@ from datetime import datetime, timezone, timedelta
 from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from urllib.parse import urlparse, urljoin
 from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -310,26 +311,6 @@ with app.app_context():
 # UTILITY FUNCTIONS
 # ========================================
 
-def get_redirect_for_user(user):
-    """
-    Get the appropriate redirect URL based on user role.
-    Admin users go to dashboard, regular users go to home.
-    
-    Args:
-        user: User object from Flask-Login
-        
-    Returns:
-        Redirect URL string
-        
-    Note: This function is kept for backwards compatibility but direct
-          redirects are preferred to prevent loops.
-    """
-    if user.is_admin:
-        return url_for('dashboard')
-    else:
-        return url_for('home')
-
-
 def is_safe_url(target):
     """
     Check if a redirect URL is safe (prevents Open Redirect attacks).
@@ -345,8 +326,6 @@ def is_safe_url(target):
         - Blocks absolute URLs to external sites
         - Prevents protocol-relative URLs
     """
-    from urllib.parse import urlparse, urljoin
-    
     # Get the host URL
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
