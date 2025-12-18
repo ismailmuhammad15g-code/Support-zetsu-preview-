@@ -50,7 +50,7 @@ def verify_schema():
     
     expected_tables = {
         'users': ['id', 'email', 'password_hash', 'is_admin', 'is_verified', 
-                  'newsletter_subscribed', 'newsletter_popup_shown', 'created_at'],
+                  'name', 'newsletter_subscribed', 'newsletter_popup_shown', 'created_at'],
         'tickets': ['id', 'ticket_id', 'name', 'email', 'issue_type', 'priority', 
                    'message', 'status', 'attachment_filename', 'admin_reply', 
                    'created_at', 'updated_at'],
@@ -97,7 +97,7 @@ def verify_schema():
 
 
 def fix_missing_column():
-    """Add missing admin_reply column if it doesn't exist"""
+    """Add missing columns if they don't exist"""
     print("\n" + "=" * 60)
     print("FIXING MISSING COLUMNS")
     print("=" * 60)
@@ -105,7 +105,9 @@ def fix_missing_column():
     try:
         with app.app_context():
             inspector = inspect(db.engine)
+            fixed_count = 0
             
+            # Fix tickets table
             if check_table_exists('tickets'):
                 columns = [col['name'] for col in inspector.get_columns('tickets')]
                 
@@ -118,13 +120,62 @@ def fix_missing_column():
                     db.session.commit()
                     
                     print("✓ Column 'admin_reply' added successfully")
-                    return True
+                    fixed_count += 1
                 else:
-                    print("✓ Column 'admin_reply' already exists")
-                    return True
+                    print("✓ Column 'admin_reply' already exists in 'tickets' table")
             else:
                 print("✗ Table 'tickets' does not exist. Run create_all() first.")
-                return False
+            
+            # Fix users table
+            if check_table_exists('users'):
+                columns = [col['name'] for col in inspector.get_columns('users')]
+                
+                if 'name' not in columns:
+                    print("⚠ 'name' column missing from 'users' table")
+                    print("  Adding column...")
+                    
+                    # Add the column
+                    db.session.execute(text('ALTER TABLE users ADD COLUMN name VARCHAR(100)'))
+                    db.session.commit()
+                    
+                    print("✓ Column 'name' added successfully")
+                    fixed_count += 1
+                else:
+                    print("✓ Column 'name' already exists in 'users' table")
+                
+                # Also check for other missing columns
+                if 'is_verified' not in columns:
+                    print("⚠ 'is_verified' column missing from 'users' table")
+                    print("  Adding column...")
+                    db.session.execute(text('ALTER TABLE users ADD COLUMN is_verified BOOLEAN NOT NULL DEFAULT 0'))
+                    db.session.commit()
+                    print("✓ Column 'is_verified' added successfully")
+                    fixed_count += 1
+                
+                if 'newsletter_subscribed' not in columns:
+                    print("⚠ 'newsletter_subscribed' column missing from 'users' table")
+                    print("  Adding column...")
+                    db.session.execute(text('ALTER TABLE users ADD COLUMN newsletter_subscribed BOOLEAN NOT NULL DEFAULT 0'))
+                    db.session.commit()
+                    print("✓ Column 'newsletter_subscribed' added successfully")
+                    fixed_count += 1
+                
+                if 'newsletter_popup_shown' not in columns:
+                    print("⚠ 'newsletter_popup_shown' column missing from 'users' table")
+                    print("  Adding column...")
+                    db.session.execute(text('ALTER TABLE users ADD COLUMN newsletter_popup_shown BOOLEAN NOT NULL DEFAULT 0'))
+                    db.session.commit()
+                    print("✓ Column 'newsletter_popup_shown' added successfully")
+                    fixed_count += 1
+            else:
+                print("✗ Table 'users' does not exist. Run create_all() first.")
+            
+            if fixed_count > 0:
+                print(f"\n✓ Fixed {fixed_count} missing column(s)")
+            else:
+                print("\n✓ No missing columns found")
+            
+            return True
                 
     except Exception as e:
         print(f"✗ Error fixing columns: {e}")
