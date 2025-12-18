@@ -113,10 +113,10 @@ def test_registration_flow():
             checks = [
                 ("email", user.email == test_email),
                 ("password_hash", bool(user.password_hash)),
-                ("is_admin", user.is_admin == False),
-                ("is_verified", user.is_verified == True),
-                ("newsletter_subscribed", user.newsletter_subscribed == False),
-                ("newsletter_popup_shown", user.newsletter_popup_shown == False),
+                ("is_admin", user.is_admin is False),
+                ("is_verified", user.is_verified is True),
+                ("newsletter_subscribed", user.newsletter_subscribed is False),
+                ("newsletter_popup_shown", user.newsletter_popup_shown is False),
                 ("created_at", isinstance(user.created_at, datetime)),
             ]
             

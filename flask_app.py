@@ -283,23 +283,27 @@ def check_auth_redirect_loop():
     Prevents redirect loops by explicitly excluding public endpoints.
     
     Public endpoints that should NEVER redirect:
-    - / (home)
-    - /login
-    - /register
-    - /verify_otp
-    - /logout
-    - /static/*
-    - /health
-    - /db-verify
-    - /support
-    - /faq
-    - /about
-    - /track
-    - /search_ticket
-    - /submit
-    - /subscribe_newsletter
-    - /dismiss_newsletter
-    - /subscribe_push
+    - home: / 
+    - login: /login
+    - register: /register
+    - verify_otp: /verify_otp
+    - logout: /logout
+    - static: /static/*
+    - health_check: /health
+    - db_verify: /db-verify
+    - support: /support
+    - faq: /faq
+    - about: /about
+    - track: /track
+    - search_ticket: /search_ticket
+    - submit: /submit
+    - subscribe_newsletter: /subscribe_newsletter
+    - dismiss_newsletter: /dismiss_newsletter
+    - subscribe_push: /subscribe_push
+    - uploaded_file: /uploads/<filename> (has its own auth check)
+    
+    For all other endpoints, the @login_required decorator handles authentication.
+    This hook simply ensures public endpoints remain accessible without redirects.
     """
     # List of public endpoints that don't require authentication
     public_endpoints = [
@@ -320,18 +324,18 @@ def check_auth_redirect_loop():
         'subscribe_newsletter',
         'dismiss_newsletter',
         'subscribe_push',
-        'uploaded_file',  # This has its own auth check
+        'uploaded_file',
     ]
     
     # Get current endpoint
     endpoint = request.endpoint
     
     # Allow all public endpoints without any redirect logic
-    if endpoint in public_endpoints:
+    # For protected routes, the @login_required decorator will handle authentication
+    if endpoint in public_endpoints or endpoint is None:
         return None
     
-    # Allow all requests to continue normally
-    # The @login_required decorator will handle authentication for protected routes
+    # No special handling needed - just ensure the request continues normally
     return None
 
 
