@@ -19,6 +19,7 @@ from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -29,6 +30,9 @@ app = Flask(__name__)
 # IMPORTANT: Set SECRET_KEY via environment variable in production
 # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-insecure-key-change-in-production')
+
+# CSRF Protection
+csrf = CSRFProtect(app)
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///support_tickets.db')
@@ -1136,6 +1140,106 @@ def bulk_resolve():
         db.session.rollback()
         print(f"Error in bulk resolve: {e}")
         flash('An error occurred while resolving tickets.', 'error')
+    
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/clear_attachments', methods=['POST'])
+@login_required
+def clear_attachments():
+    """
+    Clear unused/orphaned attachment files from the uploads directory
+    Admin only route
+    This removes files that are no longer referenced by any tickets
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    try:
+        # Get all attachment filenames from database
+        tickets = Ticket.query.all()
+        db_filenames = set()
+        for ticket in tickets:
+            if ticket.attachment_filename:
+                db_filenames.add(ticket.attachment_filename)
+        
+        # Get all files in uploads directory
+        uploads_dir = app.config['UPLOAD_FOLDER']
+        if not os.path.exists(uploads_dir):
+            flash('Uploads directory does not exist.', 'warning')
+            return redirect(url_for('dashboard'))
+        
+        files_in_directory = set(os.listdir(uploads_dir))
+        
+        # Find orphaned files (files not referenced in database)
+        orphaned_files = files_in_directory - db_filenames
+        
+        if not orphaned_files:
+            flash('No unused attachments found. All files are in use.', 'info')
+            return redirect(url_for('dashboard'))
+        
+        # Delete orphaned files
+        deleted_count = 0
+        for filename in orphaned_files:
+            file_path = os.path.join(uploads_dir, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    deleted_count += 1
+            except Exception as e:
+                print(f"Error deleting file {filename}: {e}")
+        
+        if deleted_count > 0:
+            flash(f'Successfully deleted {deleted_count} unused attachment(s).', 'success')
+        else:
+            flash('No files were deleted.', 'info')
+            
+    except Exception as e:
+        print(f"Error clearing attachments: {e}")
+        flash('An error occurred while clearing attachments.', 'error')
+    
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/delete_ticket/<int:ticket_id>', methods=['POST'])
+@login_required
+def delete_ticket(ticket_id):
+    """
+    Delete a specific ticket and its associated attachment
+    Admin only route
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    try:
+        # Get the ticket
+        ticket = db.session.get(Ticket, ticket_id)
+        if not ticket:
+            flash('Ticket not found.', 'error')
+            return redirect(url_for('dashboard'))
+        
+        # Delete associated attachment file if exists
+        if ticket.attachment_filename:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], ticket.attachment_filename)
+            if os.path.isfile(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    print(f"Error deleting attachment file: {e}")
+        
+        # Delete ticket from database
+        ticket_id_str = ticket.ticket_id
+        db.session.delete(ticket)
+        db.session.commit()
+        
+        flash(f'Ticket {ticket_id_str} and its attachment have been deleted successfully.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting ticket: {e}")
+        flash('An error occurred while deleting the ticket.', 'error')
     
     return redirect(url_for('dashboard'))
 
