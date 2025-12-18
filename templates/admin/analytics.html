@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - ZetsuServ Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <h1>ZetsuServ Admin</h1>
+            </div>
+            <ul class="navbar-nav">
+                <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_analytics') }}" class="nav-link active">Analytics</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-link">Settings</a></li>
+                <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Analytics Section -->
+    <section class="dashboard-section">
+        <div class="container">
+            <!-- Header -->
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">📊 Ticket Analytics</h1>
+                <p class="dashboard-subtitle">Detailed insights and trends for your support tickets</p>
+            </div>
+
+            <!-- Summary Statistics -->
+            <div class="stats-grid" style="margin-bottom: 30px;">
+                <div class="stat-card">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ total_tickets }}</h3>
+                        <p class="stat-label">Total Tickets</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📂</div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ open_tickets }}</h3>
+                        <p class="stat-label">Open Tickets</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ resolved_tickets }}</h3>
+                        <p class="stat-label">Resolved Tickets</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ resolution_rate }}%</h3>
+                        <p class="stat-label">Resolution Rate</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px; margin-bottom: 30px;">
+                <!-- Priority Distribution Chart -->
+                <div class="card" style="padding: 30px;">
+                    <h2 style="margin-bottom: 20px; color: #0078D4;">Priority Distribution</h2>
+                    <canvas id="priorityChart"></canvas>
+                </div>
+
+                <!-- Issue Type Distribution Chart -->
+                <div class="card" style="padding: 30px;">
+                    <h2 style="margin-bottom: 20px; color: #0078D4;">Issue Type Distribution</h2>
+                    <canvas id="issueTypeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Tickets Over Time -->
+            <div class="card" style="padding: 30px; margin-bottom: 30px;">
+                <h2 style="margin-bottom: 20px; color: #0078D4;">Tickets Over Time (Last 30 Days)</h2>
+                <canvas id="timelineChart"></canvas>
+            </div>
+
+            <!-- Two Column Layout -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px;">
+                <!-- Top Users -->
+                <div class="card" style="padding: 30px;">
+                    <h2 style="margin-bottom: 20px; color: #0078D4;">👥 Top Users by Ticket Count</h2>
+                    {% if top_users %}
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid #E1DFDD;">
+                                    <th style="padding: 12px; text-align: left; color: #323130;">Email</th>
+                                    <th style="padding: 12px; text-align: center; color: #323130;">Tickets</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for email, count in top_users %}
+                                <tr style="border-bottom: 1px solid #F3F2F1;">
+                                    <td style="padding: 12px; color: #605E5C;">{{ email }}</td>
+                                    <td style="padding: 12px; text-align: center; font-weight: 600; color: #0078D4;">{{ count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p style="color: #A19F9D; text-align: center; padding: 40px;">No users yet</p>
+                    {% endif %}
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="card" style="padding: 30px;">
+                    <h2 style="margin-bottom: 20px; color: #0078D4;">⚡ Recent Activity</h2>
+                    {% if recent_tickets %}
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            {% for ticket in recent_tickets %}
+                            <div style="padding: 12px; border-bottom: 1px solid #F3F2F1; margin-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <strong style="color: #0078D4;">{{ ticket.ticket_id }}</strong>
+                                    <span class="badge badge-{{ 'success' if ticket.status == 'Resolved' else 'primary' }}">
+                                        {{ ticket.status }}
+                                    </span>
+                                </div>
+                                <div style="font-size: 14px; color: #605E5C;">
+                                    {{ ticket.email }} - {{ ticket.issue_type }}
+                                </div>
+                                <div style="font-size: 12px; color: #A19F9D; margin-top: 4px;">
+                                    {{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p style="color: #A19F9D; text-align: center; padding: 40px;">No recent tickets</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="card" style="padding: 30px; margin-top: 30px;">
+                <h2 style="margin-bottom: 20px; color: #0078D4;">⏱️ Performance Metrics</h2>
+                <div class="stats-grid">
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 36px; font-weight: 700; color: #0078D4; margin-bottom: 8px;">
+                            {{ avg_response_time_hours }}h
+                        </div>
+                        <div style="color: #605E5C; font-size: 14px;">Average Response Time</div>
+                    </div>
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 36px; font-weight: 700; color: #107C10; margin-bottom: 8px;">
+                            {{ resolution_rate }}%
+                        </div>
+                        <div style="color: #605E5C; font-size: 14px;">Resolution Rate</div>
+                    </div>
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 36px; font-weight: 700; color: #D83B01; margin-bottom: 8px;">
+                            {{ priority_stats['Urgent'] }}
+                        </div>
+                        <div style="color: #605E5C; font-size: 14px;">Urgent Tickets</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Flash Messages as Toasts -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <script>
+                {% for category, message in messages %}
+                    showToast("{{ message }}", "{{ category }}");
+                {% endfor %}
+            </script>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Chart.js Scripts -->
+    <script>
+        // Priority Distribution Chart
+        const priorityCtx = document.getElementById('priorityChart').getContext('2d');
+        new Chart(priorityCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Urgent', 'High', 'Medium', 'Low'],
+                datasets: [{
+                    data: [
+                        {{ priority_stats['Urgent'] }},
+                        {{ priority_stats['High'] }},
+                        {{ priority_stats['Medium'] }},
+                        {{ priority_stats['Low'] }}
+                    ],
+                    backgroundColor: [
+                        '#D83B01',
+                        '#F7630C',
+                        '#FFB900',
+                        '#107C10'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+
+        // Issue Type Distribution Chart
+        const issueTypeCtx = document.getElementById('issueTypeChart').getContext('2d');
+        new Chart(issueTypeCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ issue_type_stats.keys() | list | tojson }},
+                datasets: [{
+                    label: 'Tickets',
+                    data: {{ issue_type_stats.values() | list | tojson }},
+                    backgroundColor: '#0078D4',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Timeline Chart
+        const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+        new Chart(timelineCtx, {
+            type: 'line',
+            data: {
+                labels: {{ tickets_by_date.keys() | list | tojson }},
+                datasets: [{
+                    label: 'New Tickets',
+                    data: {{ tickets_by_date.values() | list | tojson }},
+                    borderColor: '#0078D4',
+                    backgroundColor: 'rgba(0, 120, 212, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#0078D4'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+</body>
+</html>

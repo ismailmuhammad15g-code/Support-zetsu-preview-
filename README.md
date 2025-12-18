@@ -10,6 +10,75 @@ A professional, enterprise-grade Flask web application for comprehensive support
 
 ## 🎯 Features
 
+### 🆕 Latest Updates (v4.1.0) - **COMPREHENSIVE DIAGNOSTICS & ANALYTICS** 🚀
+
+**New Diagnostic Tools:**
+
+- **🏥 Health Check Endpoint** (`/health`)
+  - Real-time system health monitoring
+  - Database connection status
+  - Email configuration verification
+  - File system permissions check
+  - App configuration status
+  - Returns JSON data for programmatic access
+
+- **🗄️ Database Verification Endpoint** (`/db-verify`)
+  - Complete database schema inspection
+  - Column-by-column verification
+  - Row count for all tables
+  - Identifies missing columns or schema issues
+  - JSON output for easy troubleshooting
+
+- **🛠️ Database Migration Utility** (`db_migrate.py`)
+  - Interactive command-line tool
+  - Check database connection
+  - Verify all tables and columns
+  - Fix missing columns (safe, no data loss)
+  - Recreate database if needed
+  - Show detailed statistics
+
+**Enhanced Error Handling:**
+
+- **Custom 500 Error Handler**
+  - Detailed error messages in debug mode
+  - Troubleshooting steps and links
+  - Automatic database rollback
+  - Comprehensive logging
+
+- **Dashboard Error Resilience**
+  - Graceful degradation on database errors
+  - Detailed error logging
+  - User-friendly error messages
+  - Never crashes, always shows something
+
+**New Admin Features:**
+
+- **📊 Advanced Analytics Dashboard** (`/admin/analytics`)
+  - Visual charts with Chart.js
+  - Priority distribution (doughnut chart)
+  - Issue type distribution (bar chart)
+  - Tickets over time (line chart with 30-day history)
+  - Performance metrics
+  - Top users by ticket count
+  - Recent activity feed
+  - Resolution rate tracking
+  - Average response time calculation
+
+- **⚙️ System Settings Page** (`/admin/settings`)
+  - System information overview
+  - Database and storage statistics
+  - Configuration status indicators
+  - Email testing functionality
+  - Quick access to diagnostic tools
+  - Migration tool instructions
+  - Visual configuration status
+
+**Updated Admin Navigation:**
+- Unified navigation across all admin pages
+- Dashboard → Analytics → Settings → Broadcast → Logout
+- Clear active page indicators
+- Consistent user experience
+
 ### 🆕 Latest Updates (v4.0.0) - **CPU-OPTIMIZED FOR PYTHONANYWHERE** 🚀
 
 **Major Breaking Changes & New Features:**
@@ -836,7 +905,18 @@ Before going live, ensure:
 | `/reply_ticket/<id>` | POST | Reply to a ticket and mark as resolved |
 | `/export_tickets` | GET | Export all tickets to CSV file |
 | `/bulk_resolve` | POST | Mark multiple selected tickets as resolved |
+| `/delete_ticket/<id>` | POST | Delete individual ticket and attachment |
+| `/clear_attachments` | POST | Remove orphaned attachment files |
 | `/admin/broadcast` | GET, POST | Broadcast news to all subscribers (v4.0.0) |
+| `/admin/analytics` | GET | Advanced analytics dashboard with charts (v4.1.0) |
+| `/admin/settings` | GET, POST | System settings and configuration (v4.1.0) |
+
+### Diagnostic & Health Check Routes (v4.1.0)
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/health` | GET | System health check (JSON) - shows database, email, and file system status |
+| `/db-verify` | GET | Database schema verification (JSON) - detailed table and column information |
 
 ## 🎨 Design System
 
@@ -1014,6 +1094,278 @@ Sample tickets are automatically created when you submit forms. Use the Track Ti
 
 ## 🔧 Troubleshooting
 
+### Diagnosing Internal Server Error (500)
+
+If you're experiencing Internal Server Error (500) when accessing `/dashboard` or other routes, follow these steps:
+
+#### Step 1: Check Application Health
+
+Visit the health check endpoint to diagnose the issue:
+```
+https://your-domain.com/health
+```
+
+This will show you:
+- Database connection status
+- Whether required tables exist
+- Email configuration status
+- File system permissions
+- App configuration details
+
+#### Step 2: Verify Database Schema
+
+Visit the database verification endpoint:
+```
+https://your-domain.com/db-verify
+```
+
+This will show you:
+- All database tables and their columns
+- Row counts for each table
+- Detailed schema information
+
+#### Step 3: Check Application Logs
+
+**On PythonAnywhere:**
+1. Go to the "Web" tab
+2. Click on "Error log" link
+3. Look for the most recent traceback
+4. The error will show you exactly what's wrong
+
+**Locally:**
+```bash
+# Run the app and check console output
+python flask_app.py
+```
+
+#### Step 4: Use the Database Migration Tool
+
+We've provided a comprehensive database migration utility that can:
+- Check database connection
+- Verify all tables and columns exist
+- Fix missing columns (like `admin_reply`)
+- Recreate the database if needed
+
+**To use the migration tool:**
+
+```bash
+cd /path/to/your/project
+python db_migrate.py
+```
+
+The tool will:
+1. Check database connection
+2. Verify all tables exist
+3. Check for missing columns
+4. Show statistics
+5. Offer options to fix issues
+
+**Migration Options:**
+- **Option 1**: Fix missing columns (safe - no data loss)
+- **Option 2**: Recreate database (WARNING: deletes all data)
+- **Option 3**: Re-run diagnostics
+- **Option 4**: Exit
+
+#### Step 5: Manual Column Addition (if needed)
+
+If the `admin_reply` column is missing from your tickets table:
+
+**Using SQLite command line:**
+```bash
+sqlite3 support_tickets.db
+```
+
+```sql
+ALTER TABLE tickets ADD COLUMN admin_reply TEXT;
+.quit
+```
+
+**Using Python:**
+```python
+from flask_app import app, db
+from sqlalchemy import text
+
+with app.app_context():
+    db.session.execute(text('ALTER TABLE tickets ADD COLUMN admin_reply TEXT'))
+    db.session.commit()
+    print("Column added successfully!")
+```
+
+#### Step 6: Verify Database File Path
+
+**Check where your Flask app is looking for the database:**
+
+```python
+from flask_app import app
+print(app.config['SQLALCHEMY_DATABASE_URI'])
+```
+
+**On PythonAnywhere, ensure:**
+- The database path is absolute (e.g., `/home/yourusername/Support-zetsu-preview-/support_tickets.db`)
+- The file has proper permissions (chmod 644)
+- The directory has write permissions (chmod 755)
+
+**To set absolute path in WSGI file:**
+```python
+import os
+project_home = '/home/yourusername/Support-zetsu-preview-'
+os.environ['DATABASE_URL'] = f'sqlite:///{project_home}/support_tickets.db'
+```
+
+### Common Error Scenarios and Solutions
+
+#### Error: "no such column: tickets.admin_reply"
+
+**Cause:** Database was created before the `admin_reply` column was added to the model.
+
+**Solution:**
+1. Run the migration tool: `python db_migrate.py` and choose option 1
+2. OR manually add the column as shown in Step 5 above
+3. Reload your web app
+
+#### Error: "database is locked"
+
+**Cause:** Multiple processes trying to access SQLite database simultaneously.
+
+**Solution:**
+1. On PythonAnywhere, reload the web app
+2. Check no Python consoles are running the app
+3. Consider upgrading to PostgreSQL for production
+
+#### Error: "no such table: tickets"
+
+**Cause:** Database tables were never created.
+
+**Solution:**
+1. Run the migration tool: `python db_migrate.py` and choose option 2
+2. OR manually create tables:
+```python
+from flask_app import app, db
+with app.app_context():
+    db.create_all()
+```
+3. Reload your web app
+
+#### Error: "AttributeError: 'NoneType' object has no attribute 'is_admin'"
+
+**Cause:** User not properly loaded or session expired.
+
+**Solution:**
+1. Clear browser cookies
+2. Log out and log in again
+3. Check SECRET_KEY is consistent (not changing on reload)
+
+#### Error: "SMTPAuthenticationError"
+
+**Cause:** Email credentials are incorrect or 2FA is required.
+
+**Solution:**
+1. For Gmail, use an App-Specific Password (not your regular password)
+2. Enable "Less secure app access" (not recommended) or use App Passwords
+3. Set environment variables correctly:
+```bash
+export SENDER_EMAIL=your-email@gmail.com
+export EMAIL_PASSWORD=your-app-specific-password
+```
+
+### Debugging Tips
+
+**1. Use the Health Check Endpoint:**
+
+Visit `/health` to get instant diagnostics:
+```bash
+curl https://your-domain.com/health | python -m json.tool
+```
+
+This shows:
+- ✅ Database connection: connected/disconnected
+- ✅ Tables exist: true/false
+- ✅ admin_reply column: exists/missing
+- ✅ Email configured: true/false
+- ✅ Upload directory: exists/writable
+- ✅ Secret key: set/default
+
+**2. Use the Database Verification Endpoint:**
+
+Visit `/db-verify` for detailed schema information:
+```bash
+curl https://your-domain.com/db-verify | python -m json.tool
+```
+
+This shows:
+- All table names
+- All columns with types
+- Row counts
+- Column nullability
+- Default values
+
+**3. Use the Analytics Dashboard:**
+
+Visit `/admin/analytics` to see:
+- Visual charts of ticket distribution
+- Performance metrics
+- Trends over time
+- Top users
+- Recent activity
+
+**4. Use the Settings Dashboard:**
+
+Visit `/admin/settings` to:
+- View system information
+- Check configuration status
+- Test email functionality
+- Access diagnostic tools
+- View database statistics
+
+**5. Enable Detailed Error Pages:**
+
+The app now has enhanced error handling. When debug mode is on, visiting a failing page will show:
+- The actual error message
+- A list of troubleshooting steps
+- Links to health check endpoints
+
+**2. Check Database Connection:**
+
+Add this to your WSGI file or run locally:
+```python
+from flask_app import app, db
+with app.app_context():
+    try:
+        db.session.execute(db.text('SELECT 1'))
+        print("✓ Database connected")
+    except Exception as e:
+        print(f"✗ Database error: {e}")
+```
+
+**3. Verify All Environment Variables:**
+
+```python
+import os
+print("SECRET_KEY set:", bool(os.environ.get('SECRET_KEY')))
+print("SENDER_EMAIL set:", bool(os.environ.get('SENDER_EMAIL')))
+print("EMAIL_PASSWORD set:", bool(os.environ.get('EMAIL_PASSWORD')))
+print("DATABASE_URL:", os.environ.get('DATABASE_URL', 'Not set'))
+```
+
+**4. Test Routes Individually:**
+
+```bash
+# Test health endpoint
+curl https://your-domain.com/health
+
+# Test database verification
+curl https://your-domain.com/db-verify
+```
+
+**5. Check File Permissions (PythonAnywhere):**
+
+```bash
+# In a Bash console
+cd ~/Support-zetsu-preview-
+ls -la support_tickets.db    # Should be -rw-r--r--
+ls -la uploads/              # Should be drwxr-xr-x
+```
+
 ### Email Notification Issues
 
 **Problem:** Admin receives message "Reply saved and ticket marked as Resolved, but email notification failed."
@@ -1181,7 +1533,97 @@ For issues, questions, or contributions:
 
 ## 🔄 Changelog
 
-### Version 4.0.0 (Latest - December 2024) 🚀 **CPU-OPTIMIZED RELEASE**
+### Version 4.1.0 (Latest - December 2024) 🎉 **COMPREHENSIVE DIAGNOSTICS & ANALYTICS**
+
+#### 🚀 New Features
+
+**Diagnostic Tools:**
+- ✨ **NEW:** `/health` endpoint - Real-time system health monitoring
+  - Database connection status
+  - Email configuration verification
+  - File system permissions check
+  - App configuration details
+  - JSON response for programmatic access
+  
+- ✨ **NEW:** `/db-verify` endpoint - Database schema verification
+  - Complete schema inspection
+  - Column-by-column analysis
+  - Row counts for all tables
+  - Identifies schema issues
+  - JSON output for troubleshooting
+
+- ✨ **NEW:** `db_migrate.py` - Interactive database migration utility
+  - Check database connection
+  - Verify all tables and columns exist
+  - Fix missing columns (safe, no data loss)
+  - Recreate database option
+  - Show detailed statistics
+  - Interactive menu system
+
+**Admin Features:**
+- ✨ **NEW:** `/admin/analytics` - Advanced analytics dashboard
+  - Visual charts powered by Chart.js
+  - Priority distribution (doughnut chart)
+  - Issue type distribution (bar chart)
+  - 30-day ticket timeline (line chart)
+  - Performance metrics
+  - Top users by ticket count
+  - Recent activity feed
+  - Resolution rate tracking
+  - Average response time calculation
+
+- ✨ **NEW:** `/admin/settings` - System settings and configuration
+  - System information overview
+  - Database and storage statistics
+  - Configuration status indicators
+  - Email testing functionality
+  - Quick links to diagnostic tools
+  - Migration tool documentation
+  - Visual status cards
+
+#### 🔧 Improvements
+
+- 🔧 **ENHANCED:** Dashboard route with comprehensive error handling
+  - Graceful degradation on database errors
+  - Detailed error logging
+  - User-friendly error messages
+  - Never crashes, always displays
+
+- 🔧 **ENHANCED:** Custom 500 error handler
+  - Detailed error information in debug mode
+  - Troubleshooting steps and links
+  - Automatic database rollback
+  - Comprehensive logging with stack traces
+
+- 🔧 **ENHANCED:** Admin navigation consistency
+  - Unified navigation across all admin pages
+  - Clear active page indicators
+  - Logical page ordering
+
+#### 📝 Documentation
+
+- 📝 **DOCS:** Comprehensive troubleshooting guide in README
+  - Step-by-step diagnostic procedures
+  - Common error scenarios and solutions
+  - Database issue resolution
+  - Email configuration help
+  - File permission fixes
+  - PythonAnywhere-specific tips
+
+- 📝 **DOCS:** Health check and verification endpoints
+- 📝 **DOCS:** Database migration tool usage
+- 📝 **DOCS:** New admin features documentation
+- 📝 **DOCS:** Updated routes table with new endpoints
+
+#### 🛡️ Bug Fixes
+
+- 🐛 **FIXED:** Dashboard crashes on database errors
+- 🐛 **FIXED:** Missing error messages for database issues
+- 🐛 **FIXED:** No way to verify database schema without SSH access
+
+---
+
+### Version 4.0.0 (December 2024) 🚀 **CPU-OPTIMIZED RELEASE**
 
 #### 🎯 Breaking Changes
 - ⚠️ **Registration Changed:** No more admin whitelist! Open registration with email OTP verification

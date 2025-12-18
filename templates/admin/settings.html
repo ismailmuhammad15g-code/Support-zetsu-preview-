@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - ZetsuServ Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <h1>ZetsuServ Admin</h1>
+            </div>
+            <ul class="navbar-nav">
+                <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_analytics') }}" class="nav-link">Analytics</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-link active">Settings</a></li>
+                <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Settings Section -->
+    <section class="dashboard-section">
+        <div class="container">
+            <!-- Header -->
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">⚙️ System Settings</h1>
+                <p class="dashboard-subtitle">Manage system configuration and monitor health</p>
+            </div>
+
+            <!-- System Information -->
+            <div class="card" style="margin-bottom: 30px; padding: 30px;">
+                <h2 style="margin-bottom: 20px; color: #0078D4;">📊 System Information</h2>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #F3F2F1;">
+                        <td style="padding: 15px; font-weight: 600; color: #323130; width: 40%;">Database URI</td>
+                        <td style="padding: 15px; color: #605E5C; font-family: monospace; font-size: 13px;">{{ system_info.database_uri }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F3F2F1;">
+                        <td style="padding: 15px; font-weight: 600; color: #323130;">Database Size</td>
+                        <td style="padding: 15px; color: #605E5C;">{{ "%.2f"|format(system_info.database_size) }} MB</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F3F2F1;">
+                        <td style="padding: 15px; font-weight: 600; color: #323130;">Upload Folder</td>
+                        <td style="padding: 15px; color: #605E5C; font-family: monospace; font-size: 13px;">{{ system_info.upload_folder }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F3F2F1;">
+                        <td style="padding: 15px; font-weight: 600; color: #323130;">Upload Folder Size</td>
+                        <td style="padding: 15px; color: #605E5C;">{{ "%.2f"|format(system_info.upload_folder_size) }} MB</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F3F2F1;">
+                        <td style="padding: 15px; font-weight: 600; color: #323130;">Total Users</td>
+                        <td style="padding: 15px; color: #605E5C;">{{ system_info.total_users }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F3F2F1;">
+                        <td style="padding: 15px; font-weight: 600; color: #323130;">Total Tickets</td>
+                        <td style="padding: 15px; color: #605E5C;">{{ system_info.total_tickets }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F3F2F1;">
+                        <td style="padding: 15px; font-weight: 600; color: #323130;">Total FAQs</td>
+                        <td style="padding: 15px; color: #605E5C;">{{ system_info.total_faqs }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Configuration Status -->
+            <div class="card" style="margin-bottom: 30px; padding: 30px;">
+                <h2 style="margin-bottom: 20px; color: #0078D4;">🔧 Configuration Status</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card" style="background: {{ '#DFF6DD' if system_info.email_configured else '#FDE7E9' }};">
+                        <div class="stat-icon">{{ '✅' if system_info.email_configured else '❌' }}</div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">Email</h3>
+                            <p class="stat-label">{{ 'Configured' if system_info.email_configured else 'Not Configured' }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card" style="background: {{ '#DFF6DD' if system_info.webhook_configured else '#FFF4CE' }};">
+                        <div class="stat-icon">{{ '✅' if system_info.webhook_configured else '⚠️' }}</div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">Webhook</h3>
+                            <p class="stat-label">{{ 'Configured' if system_info.webhook_configured else 'Optional' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {% if not system_info.email_configured %}
+                <div style="margin-top: 20px; padding: 16px; background: #FFF4CE; border-left: 4px solid #FFB900; border-radius: 4px;">
+                    <p style="color: #323130; margin: 0;"><strong>⚠️ Email Not Configured</strong></p>
+                    <p style="color: #605E5C; margin: 8px 0 0 0; font-size: 14px;">
+                        Email notifications are disabled. To enable, set the following environment variables:
+                        <code style="background: #F3F2F1; padding: 2px 6px; border-radius: 2px; font-size: 12px;">SENDER_EMAIL</code>,
+                        <code style="background: #F3F2F1; padding: 2px 6px; border-radius: 2px; font-size: 12px;">EMAIL_PASSWORD</code>,
+                        <code style="background: #F3F2F1; padding: 2px 6px; border-radius: 2px; font-size: 12px;">SMTP_SERVER</code>,
+                        <code style="background: #F3F2F1; padding: 2px 6px; border-radius: 2px; font-size: 12px;">SMTP_PORT</code>
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Email Testing -->
+            {% if system_info.email_configured %}
+            <div class="card" style="margin-bottom: 30px; padding: 30px;">
+                <h2 style="margin-bottom: 20px; color: #0078D4;">✉️ Email Testing</h2>
+                <p style="color: #605E5C; margin-bottom: 20px;">
+                    Test your email configuration by sending a test email to your admin account.
+                </p>
+                
+                <form method="POST" action="{{ url_for('admin_settings') }}">
+                    <input type="hidden" name="action" value="test_email">
+                    <button type="submit" class="btn btn-primary">
+                        📧 Send Test Email
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            <!-- Diagnostic Tools -->
+            <div class="card" style="margin-bottom: 30px; padding: 30px;">
+                <h2 style="margin-bottom: 20px; color: #0078D4;">🔍 Diagnostic Tools</h2>
+                <p style="color: #605E5C; margin-bottom: 20px;">
+                    Use these tools to diagnose and troubleshoot system issues.
+                </p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                    <a href="/health" target="_blank" class="btn btn-secondary" style="text-align: center; display: block; padding: 12px;">
+                        🏥 Health Check
+                    </a>
+                    <a href="/db-verify" target="_blank" class="btn btn-secondary" style="text-align: center; display: block; padding: 12px;">
+                        🗄️ Database Verification
+                    </a>
+                </div>
+
+                <div style="margin-top: 20px; padding: 16px; background: #E3F2FD; border-left: 4px solid #0078D4; border-radius: 4px;">
+                    <p style="color: #323130; margin: 0;"><strong>ℹ️ Diagnostic Endpoints</strong></p>
+                    <p style="color: #605E5C; margin: 8px 0 0 0; font-size: 14px;">
+                        These endpoints provide detailed information about your system's health and configuration.
+                        Use them to troubleshoot issues or verify your deployment.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Database Migration Tool -->
+            <div class="card" style="padding: 30px;">
+                <h2 style="margin-bottom: 20px; color: #0078D4;">🛠️ Database Migration Tool</h2>
+                <p style="color: #605E5C; margin-bottom: 20px;">
+                    If you're experiencing database issues, use the migration tool to diagnose and fix problems.
+                </p>
+                
+                <div style="background: #F3F2F1; padding: 16px; border-radius: 4px; font-family: monospace; font-size: 14px; margin-bottom: 15px;">
+                    <pre style="margin: 0; color: #323130;">$ python db_migrate.py</pre>
+                </div>
+
+                <div style="padding: 16px; background: #FDE7E9; border-left: 4px solid #D83B01; border-radius: 4px;">
+                    <p style="color: #323130; margin: 0;"><strong>⚠️ Important</strong></p>
+                    <p style="color: #605E5C; margin: 8px 0 0 0; font-size: 14px;">
+                        The migration tool must be run from the command line on your server.
+                        It cannot be accessed through the web interface for security reasons.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Flash Messages as Toasts -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <script>
+                {% for category, message in messages %}
+                    showToast("{{ message }}", "{{ category }}");
+                {% endfor %}
+            </script>
+        {% endif %}
+    {% endwith %}
+
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+</body>
+</html>
