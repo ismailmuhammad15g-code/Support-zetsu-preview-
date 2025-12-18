@@ -1014,6 +1014,231 @@ Sample tickets are automatically created when you submit forms. Use the Track Ti
 
 ## 🔧 Troubleshooting
 
+### Diagnosing Internal Server Error (500)
+
+If you're experiencing Internal Server Error (500) when accessing `/dashboard` or other routes, follow these steps:
+
+#### Step 1: Check Application Health
+
+Visit the health check endpoint to diagnose the issue:
+```
+https://your-domain.com/health
+```
+
+This will show you:
+- Database connection status
+- Whether required tables exist
+- Email configuration status
+- File system permissions
+- App configuration details
+
+#### Step 2: Verify Database Schema
+
+Visit the database verification endpoint:
+```
+https://your-domain.com/db-verify
+```
+
+This will show you:
+- All database tables and their columns
+- Row counts for each table
+- Detailed schema information
+
+#### Step 3: Check Application Logs
+
+**On PythonAnywhere:**
+1. Go to the "Web" tab
+2. Click on "Error log" link
+3. Look for the most recent traceback
+4. The error will show you exactly what's wrong
+
+**Locally:**
+```bash
+# Run the app and check console output
+python flask_app.py
+```
+
+#### Step 4: Use the Database Migration Tool
+
+We've provided a comprehensive database migration utility that can:
+- Check database connection
+- Verify all tables and columns exist
+- Fix missing columns (like `admin_reply`)
+- Recreate the database if needed
+
+**To use the migration tool:**
+
+```bash
+cd /path/to/your/project
+python db_migrate.py
+```
+
+The tool will:
+1. Check database connection
+2. Verify all tables exist
+3. Check for missing columns
+4. Show statistics
+5. Offer options to fix issues
+
+**Migration Options:**
+- **Option 1**: Fix missing columns (safe - no data loss)
+- **Option 2**: Recreate database (WARNING: deletes all data)
+- **Option 3**: Re-run diagnostics
+- **Option 4**: Exit
+
+#### Step 5: Manual Column Addition (if needed)
+
+If the `admin_reply` column is missing from your tickets table:
+
+**Using SQLite command line:**
+```bash
+sqlite3 support_tickets.db
+```
+
+```sql
+ALTER TABLE tickets ADD COLUMN admin_reply TEXT;
+.quit
+```
+
+**Using Python:**
+```python
+from flask_app import app, db
+from sqlalchemy import text
+
+with app.app_context():
+    db.session.execute(text('ALTER TABLE tickets ADD COLUMN admin_reply TEXT'))
+    db.session.commit()
+    print("Column added successfully!")
+```
+
+#### Step 6: Verify Database File Path
+
+**Check where your Flask app is looking for the database:**
+
+```python
+from flask_app import app
+print(app.config['SQLALCHEMY_DATABASE_URI'])
+```
+
+**On PythonAnywhere, ensure:**
+- The database path is absolute (e.g., `/home/yourusername/Support-zetsu-preview-/support_tickets.db`)
+- The file has proper permissions (chmod 644)
+- The directory has write permissions (chmod 755)
+
+**To set absolute path in WSGI file:**
+```python
+import os
+project_home = '/home/yourusername/Support-zetsu-preview-'
+os.environ['DATABASE_URL'] = f'sqlite:///{project_home}/support_tickets.db'
+```
+
+### Common Error Scenarios and Solutions
+
+#### Error: "no such column: tickets.admin_reply"
+
+**Cause:** Database was created before the `admin_reply` column was added to the model.
+
+**Solution:**
+1. Run the migration tool: `python db_migrate.py` and choose option 1
+2. OR manually add the column as shown in Step 5 above
+3. Reload your web app
+
+#### Error: "database is locked"
+
+**Cause:** Multiple processes trying to access SQLite database simultaneously.
+
+**Solution:**
+1. On PythonAnywhere, reload the web app
+2. Check no Python consoles are running the app
+3. Consider upgrading to PostgreSQL for production
+
+#### Error: "no such table: tickets"
+
+**Cause:** Database tables were never created.
+
+**Solution:**
+1. Run the migration tool: `python db_migrate.py` and choose option 2
+2. OR manually create tables:
+```python
+from flask_app import app, db
+with app.app_context():
+    db.create_all()
+```
+3. Reload your web app
+
+#### Error: "AttributeError: 'NoneType' object has no attribute 'is_admin'"
+
+**Cause:** User not properly loaded or session expired.
+
+**Solution:**
+1. Clear browser cookies
+2. Log out and log in again
+3. Check SECRET_KEY is consistent (not changing on reload)
+
+#### Error: "SMTPAuthenticationError"
+
+**Cause:** Email credentials are incorrect or 2FA is required.
+
+**Solution:**
+1. For Gmail, use an App-Specific Password (not your regular password)
+2. Enable "Less secure app access" (not recommended) or use App Passwords
+3. Set environment variables correctly:
+```bash
+export SENDER_EMAIL=your-email@gmail.com
+export EMAIL_PASSWORD=your-app-specific-password
+```
+
+### Debugging Tips
+
+**1. Enable Detailed Error Pages:**
+
+The app now has enhanced error handling. When debug mode is on, visiting a failing page will show:
+- The actual error message
+- A list of troubleshooting steps
+- Links to health check endpoints
+
+**2. Check Database Connection:**
+
+Add this to your WSGI file or run locally:
+```python
+from flask_app import app, db
+with app.app_context():
+    try:
+        db.session.execute(db.text('SELECT 1'))
+        print("✓ Database connected")
+    except Exception as e:
+        print(f"✗ Database error: {e}")
+```
+
+**3. Verify All Environment Variables:**
+
+```python
+import os
+print("SECRET_KEY set:", bool(os.environ.get('SECRET_KEY')))
+print("SENDER_EMAIL set:", bool(os.environ.get('SENDER_EMAIL')))
+print("EMAIL_PASSWORD set:", bool(os.environ.get('EMAIL_PASSWORD')))
+print("DATABASE_URL:", os.environ.get('DATABASE_URL', 'Not set'))
+```
+
+**4. Test Routes Individually:**
+
+```bash
+# Test health endpoint
+curl https://your-domain.com/health
+
+# Test database verification
+curl https://your-domain.com/db-verify
+```
+
+**5. Check File Permissions (PythonAnywhere):**
+
+```bash
+# In a Bash console
+cd ~/Support-zetsu-preview-
+ls -la support_tickets.db    # Should be -rw-r--r--
+ls -la uploads/              # Should be drwxr-xr-x
+```
+
 ### Email Notification Issues
 
 **Problem:** Admin receives message "Reply saved and ticket marked as Resolved, but email notification failed."

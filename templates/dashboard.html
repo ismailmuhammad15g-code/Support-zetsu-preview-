@@ -21,9 +21,12 @@
             <!-- Navigation Links -->
             <ul class="navbar-nav">
                 <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
-                <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
-                <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
-                <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link active">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_analytics') }}" class="nav-link">Analytics</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-link">Settings</a></li>
+                <li><a href="{{ url_for('admin_broadcast') }}" class="nav-link">Broadcast</a></li>
+                <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
+            </ul>
                 <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
                 <li><a href="{{ url_for('dashboard') }}" class="nav-link active">Dashboard</a></li>
                 <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>

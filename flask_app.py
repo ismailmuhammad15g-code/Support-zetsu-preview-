@@ -732,6 +732,116 @@ def send_to_webhook(ticket_data):
         return False
 
 # ========================================
+# UTILITY ROUTES FOR DEBUGGING
+# ========================================
+
+@app.route('/health')
+def health_check():
+    """
+    Health check endpoint for debugging and monitoring
+    Returns database connection status and configuration info
+    """
+    try:
+        health_data = {
+            'status': 'healthy',
+            'database': {
+                'connected': False,
+                'path': app.config['SQLALCHEMY_DATABASE_URI'],
+                'tables_exist': False,
+                'ticket_count': 0
+            },
+            'email': {
+                'configured': bool(SENDER_EMAIL and EMAIL_PASSWORD),
+                'smtp_server': SMTP_SERVER if SMTP_SERVER else 'Not configured',
+                'sender_email': SENDER_EMAIL if SENDER_EMAIL else 'Not configured'
+            },
+            'file_system': {
+                'uploads_dir_exists': os.path.exists(UPLOAD_FOLDER),
+                'uploads_dir_writable': os.access(UPLOAD_FOLDER, os.W_OK) if os.path.exists(UPLOAD_FOLDER) else False
+            },
+            'app_info': {
+                'version': '4.0.0',
+                'debug_mode': app.debug,
+                'secret_key_set': bool(app.config['SECRET_KEY'] != 'dev-only-insecure-key-change-in-production')
+            }
+        }
+        
+        # Test database connection
+        with app.app_context():
+            try:
+                # Try to query the database
+                ticket_count = db.session.query(Ticket).count()
+                health_data['database']['connected'] = True
+                health_data['database']['tables_exist'] = True
+                health_data['database']['ticket_count'] = ticket_count
+                
+                # Check if admin_reply column exists
+                from sqlalchemy import inspect
+                inspector = inspect(db.engine)
+                columns = [col['name'] for col in inspector.get_columns('tickets')]
+                health_data['database']['admin_reply_column_exists'] = 'admin_reply' in columns
+                health_data['database']['columns'] = columns
+                
+            except Exception as db_error:
+                health_data['database']['error'] = str(db_error)
+                health_data['status'] = 'unhealthy'
+        
+        return jsonify(health_data), 200
+        
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
+@app.route('/db-verify')
+def db_verify():
+    """
+    Database verification endpoint
+    Provides detailed information about database schema
+    Admin-only endpoint for troubleshooting
+    """
+    try:
+        with app.app_context():
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            
+            # Get all tables
+            tables = inspector.get_table_names()
+            
+            verification_data = {
+                'database_url': app.config['SQLALCHEMY_DATABASE_URI'],
+                'tables': {}
+            }
+            
+            for table in tables:
+                columns = inspector.get_columns(table)
+                verification_data['tables'][table] = {
+                    'columns': [
+                        {
+                            'name': col['name'],
+                            'type': str(col['type']),
+                            'nullable': col['nullable'],
+                            'default': str(col['default']) if col['default'] else None
+                        }
+                        for col in columns
+                    ],
+                    'row_count': db.session.execute(db.text(f'SELECT COUNT(*) FROM {table}')).scalar()
+                }
+            
+            return jsonify(verification_data), 200
+            
+    except Exception as e:
+        logger.error(f"Database verification failed: {e}")
+        return jsonify({
+            'error': str(e),
+            'traceback': str(e.__traceback__)
+        }), 500
+
+
+# ========================================
 # ROUTES
 # ========================================
 
@@ -1296,58 +1406,92 @@ def dashboard():
     """
     Admin dashboard - view all tickets with filtering
     Protected route requiring authentication
+    Enhanced with comprehensive error handling
     """
-    if not current_user.is_admin:
-        flash('Access denied. Admin privileges required.', 'error')
-        return redirect(url_for('home'))
-    
-    # Get filter parameters from query string
-    status_filter = request.args.get('status', 'all')
-    priority_filter = request.args.get('priority', 'all')
-    issue_type_filter = request.args.get('issue_type', 'all')
-    
-    # Build query with filters
-    query = Ticket.query
-    
-    if status_filter != 'all':
-        query = query.filter_by(status=status_filter)
-    
-    if priority_filter != 'all':
-        query = query.filter_by(priority=priority_filter)
-    
-    if issue_type_filter != 'all':
-        query = query.filter_by(issue_type=issue_type_filter)
-    
-    # Get filtered tickets
-    tickets = query.order_by(Ticket.created_at.desc()).all()
-    
-    # Calculate statistics (from all tickets, not filtered)
-    all_tickets = Ticket.query.all()
-    open_count = sum(1 for t in all_tickets if t.status == 'Open')
-    resolved_count = sum(1 for t in all_tickets if t.status == 'Resolved')
-    total_count = len(all_tickets)
-    
-    # Calculate priority statistics
-    urgent_count = sum(1 for t in all_tickets if t.priority == 'Urgent')
-    high_count = sum(1 for t in all_tickets if t.priority == 'High')
-    
-    # Check email configuration status
-    email_configured = bool(SENDER_EMAIL and EMAIL_PASSWORD)
-    
-    return render_template('dashboard.html', 
-                         tickets=tickets,
-                         open_count=open_count,
-                         resolved_count=resolved_count,
-                         total_count=total_count,
-                         urgent_count=urgent_count,
-                         high_count=high_count,
-                         status_filter=status_filter,
-                         priority_filter=priority_filter,
-                         issue_type_filter=issue_type_filter,
-                         allowed_issue_types=ALLOWED_ISSUE_TYPES,
-                         ticket_priorities=TICKET_PRIORITIES,
-                         is_image_file=is_image_file,
-                         email_configured=email_configured)
+    try:
+        if not current_user.is_admin:
+            flash('Access denied. Admin privileges required.', 'error')
+            return redirect(url_for('home'))
+        
+        # Get filter parameters from query string
+        status_filter = request.args.get('status', 'all')
+        priority_filter = request.args.get('priority', 'all')
+        issue_type_filter = request.args.get('issue_type', 'all')
+        
+        # Build query with filters
+        query = Ticket.query
+        
+        if status_filter != 'all':
+            query = query.filter_by(status=status_filter)
+        
+        if priority_filter != 'all':
+            query = query.filter_by(priority=priority_filter)
+        
+        if issue_type_filter != 'all':
+            query = query.filter_by(issue_type=issue_type_filter)
+        
+        # Get filtered tickets with error handling
+        try:
+            tickets = query.order_by(Ticket.created_at.desc()).all()
+        except Exception as query_error:
+            logger.error(f"Error querying tickets: {query_error}")
+            flash(f'Database error: {str(query_error)}. Please check logs.', 'error')
+            # Return empty list if query fails
+            tickets = []
+        
+        # Calculate statistics (from all tickets, not filtered)
+        try:
+            all_tickets = Ticket.query.all()
+            open_count = sum(1 for t in all_tickets if t.status == 'Open')
+            resolved_count = sum(1 for t in all_tickets if t.status == 'Resolved')
+            total_count = len(all_tickets)
+            
+            # Calculate priority statistics
+            urgent_count = sum(1 for t in all_tickets if t.priority == 'Urgent')
+            high_count = sum(1 for t in all_tickets if t.priority == 'High')
+        except Exception as stats_error:
+            logger.error(f"Error calculating statistics: {stats_error}")
+            open_count = resolved_count = total_count = urgent_count = high_count = 0
+        
+        # Check email configuration status
+        email_configured = bool(SENDER_EMAIL and EMAIL_PASSWORD)
+        
+        # Log dashboard access for debugging
+        logger.info(f"Dashboard accessed by {current_user.email}. Tickets count: {len(tickets)}")
+        
+        return render_template('dashboard.html', 
+                             tickets=tickets,
+                             open_count=open_count,
+                             resolved_count=resolved_count,
+                             total_count=total_count,
+                             urgent_count=urgent_count,
+                             high_count=high_count,
+                             status_filter=status_filter,
+                             priority_filter=priority_filter,
+                             issue_type_filter=issue_type_filter,
+                             allowed_issue_types=ALLOWED_ISSUE_TYPES,
+                             ticket_priorities=TICKET_PRIORITIES,
+                             is_image_file=is_image_file,
+                             email_configured=email_configured)
+                             
+    except Exception as e:
+        logger.error(f"Critical error in dashboard route: {e}", exc_info=True)
+        flash(f'An unexpected error occurred while loading the dashboard: {str(e)}', 'error')
+        # Return a basic error page or redirect
+        return render_template('dashboard.html',
+                             tickets=[],
+                             open_count=0,
+                             resolved_count=0,
+                             total_count=0,
+                             urgent_count=0,
+                             high_count=0,
+                             status_filter='all',
+                             priority_filter='all',
+                             issue_type_filter='all',
+                             allowed_issue_types=ALLOWED_ISSUE_TYPES,
+                             ticket_priorities=TICKET_PRIORITIES,
+                             is_image_file=is_image_file,
+                             email_configured=False), 500
 
 
 @app.route('/reply_ticket/<int:ticket_id>', methods=['POST'])
@@ -1687,6 +1831,137 @@ def admin_broadcast():
                          push_subscriber_count=push_subscriber_count)
 
 
+@app.route('/admin/analytics')
+@login_required
+def admin_analytics():
+    """
+    Advanced analytics dashboard for tickets (NEW FEATURE)
+    Shows detailed statistics, trends, and insights
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    try:
+        with app.app_context():
+            # Get all tickets
+            all_tickets = Ticket.query.all()
+            
+            # Basic statistics
+            total_tickets = len(all_tickets)
+            open_tickets = sum(1 for t in all_tickets if t.status == 'Open')
+            resolved_tickets = sum(1 for t in all_tickets if t.status == 'Resolved')
+            
+            # Priority breakdown
+            priority_stats = {
+                'Urgent': sum(1 for t in all_tickets if t.priority == 'Urgent'),
+                'High': sum(1 for t in all_tickets if t.priority == 'High'),
+                'Medium': sum(1 for t in all_tickets if t.priority == 'Medium'),
+                'Low': sum(1 for t in all_tickets if t.priority == 'Low'),
+            }
+            
+            # Issue type breakdown
+            issue_type_stats = {}
+            for issue_type in ALLOWED_ISSUE_TYPES:
+                count = sum(1 for t in all_tickets if t.issue_type == issue_type)
+                if count > 0:
+                    issue_type_stats[issue_type] = count
+            
+            # Resolution rate
+            resolution_rate = (resolved_tickets / total_tickets * 100) if total_tickets > 0 else 0
+            
+            # Average response time (tickets with admin reply)
+            tickets_with_reply = [t for t in all_tickets if t.admin_reply]
+            avg_response_time_hours = 0
+            if tickets_with_reply:
+                total_hours = 0
+                for ticket in tickets_with_reply:
+                    time_diff = ticket.updated_at - ticket.created_at
+                    total_hours += time_diff.total_seconds() / 3600
+                avg_response_time_hours = total_hours / len(tickets_with_reply)
+            
+            # Tickets by date (last 30 days)
+            from datetime import timedelta
+            today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            tickets_by_date = {}
+            for i in range(30):
+                date = today - timedelta(days=i)
+                date_str = date.strftime('%Y-%m-%d')
+                count = sum(1 for t in all_tickets if t.created_at.date() == date.date())
+                tickets_by_date[date_str] = count
+            
+            # Sort by date
+            tickets_by_date = dict(sorted(tickets_by_date.items()))
+            
+            # Top users by ticket count
+            user_ticket_counts = {}
+            for ticket in all_tickets:
+                user_ticket_counts[ticket.email] = user_ticket_counts.get(ticket.email, 0) + 1
+            top_users = sorted(user_ticket_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            
+            # Recent activity (last 10 tickets)
+            recent_tickets = Ticket.query.order_by(Ticket.created_at.desc()).limit(10).all()
+            
+            return render_template('admin/analytics.html',
+                                 total_tickets=total_tickets,
+                                 open_tickets=open_tickets,
+                                 resolved_tickets=resolved_tickets,
+                                 resolution_rate=round(resolution_rate, 2),
+                                 priority_stats=priority_stats,
+                                 issue_type_stats=issue_type_stats,
+                                 avg_response_time_hours=round(avg_response_time_hours, 2),
+                                 tickets_by_date=tickets_by_date,
+                                 top_users=top_users,
+                                 recent_tickets=recent_tickets)
+                                 
+    except Exception as e:
+        logger.error(f"Error loading analytics: {e}", exc_info=True)
+        flash('An error occurred while loading analytics.', 'error')
+        return redirect(url_for('dashboard'))
+
+
+@app.route('/admin/settings', methods=['GET', 'POST'])
+@login_required
+def admin_settings():
+    """
+    Admin settings page (NEW FEATURE)
+    Manage system configuration and preferences
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        # Handle settings updates
+        action = request.form.get('action')
+        
+        if action == 'test_email':
+            # Test email configuration
+            test_email = current_user.email
+            try:
+                send_email(test_email, 'Test User', 'This is a test message', 'Technical Support', 'TEST-12345', 'Low')
+                flash('Test email sent successfully! Check your inbox.', 'success')
+            except Exception as e:
+                flash(f'Email test failed: {str(e)}', 'error')
+        
+        return redirect(url_for('admin_settings'))
+    
+    # Get system information
+    system_info = {
+        'database_uri': app.config['SQLALCHEMY_DATABASE_URI'],
+        'database_size': os.path.getsize('support_tickets.db') / 1024 / 1024 if os.path.exists('support_tickets.db') else 0,  # MB
+        'upload_folder': UPLOAD_FOLDER,
+        'upload_folder_size': sum(os.path.getsize(os.path.join(UPLOAD_FOLDER, f)) for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(os.path.join(UPLOAD_FOLDER, f))) / 1024 / 1024 if os.path.exists(UPLOAD_FOLDER) else 0,  # MB
+        'email_configured': bool(SENDER_EMAIL and EMAIL_PASSWORD),
+        'webhook_configured': bool(N8N_WEBHOOK_URL),
+        'total_users': User.query.count(),
+        'total_tickets': Ticket.query.count(),
+        'total_faqs': FAQ.query.count(),
+    }
+    
+    return render_template('admin/settings.html', system_info=system_info)
+
+
 def send_news_email(user_email, title, content):
     """
     Send news broadcast email (CPU-optimized)
@@ -1729,6 +2004,52 @@ def send_news_email(user_email, title, content):
     except Exception as e:
         logger.error(f"Error sending news email to {user_email}: {e}")
         return False
+
+
+# ========================================
+# ERROR HANDLERS
+# ========================================
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    return render_template('home.html'), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """
+    Handle 500 Internal Server Errors
+    Provides detailed error information for debugging
+    """
+    db.session.rollback()  # Rollback any failed database transactions
+    logger.error(f"Internal Server Error: {error}", exc_info=True)
+    
+    # In production, show a friendly error page
+    # In development, show detailed error information
+    if app.debug:
+        return f"""
+        <html>
+        <head><title>Internal Server Error</title></head>
+        <body style="font-family: monospace; padding: 20px;">
+            <h1>Internal Server Error (500)</h1>
+            <h2>Error Details:</h2>
+            <pre>{error}</pre>
+            <h2>Troubleshooting Steps:</h2>
+            <ol>
+                <li>Check the application logs for detailed traceback</li>
+                <li>Verify database connection at <a href="/health">/health</a></li>
+                <li>Verify database schema at <a href="/db-verify">/db-verify</a></li>
+                <li>Ensure all environment variables are set correctly</li>
+                <li>Check that the database file has the correct permissions</li>
+            </ol>
+            <p><a href="/">Return to Home</a></p>
+        </body>
+        </html>
+        """, 500
+    else:
+        flash('An internal server error occurred. Please contact the administrator.', 'error')
+        return redirect(url_for('home'))
 
 
 # Run the application
