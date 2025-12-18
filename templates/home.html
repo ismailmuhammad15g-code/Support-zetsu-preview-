@@ -86,10 +86,37 @@
         💬
     </a>
 
+    <!-- Newsletter Popup Modal (v4.0.0) -->
+    {% if current_user.is_authenticated and not current_user.newsletter_popup_shown %}
+    <div id="newsletterModal" class="newsletter-modal">
+        <div class="newsletter-popup">
+            <button class="newsletter-close" onclick="dismissNewsletter()">×</button>
+            <div class="newsletter-content">
+                <h2>📧 Stay Updated!</h2>
+                <p>Subscribe to our newsletter for the latest news and updates from ZetsuServ.</p>
+                <form id="newsletterForm" onsubmit="subscribeNewsletter(event)">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input 
+                        type="email" 
+                        id="newsletterEmail" 
+                        class="form-input" 
+                        placeholder="Your email address"
+                        value="{{ current_user.email }}"
+                        readonly
+                        required
+                    >
+                    <button type="submit" class="btn btn-primary">Subscribe</button>
+                    <button type="button" class="btn btn-secondary" onclick="dismissNewsletter()">Maybe Later</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>Powered by ZetsuServ AI</p>
+            <p>Powered by ZetsuServ AI v4.0.0</p>
         </div>
     </footer>
 
@@ -126,6 +153,189 @@
         // Update greeting every hour (3600000ms) instead of every minute
         // Greetings only change hourly, so no need for frequent updates
         setInterval(updateGreeting, 3600000);
+
+        // Newsletter popup functions (v4.0.0)
+        function subscribeNewsletter(event) {
+            event.preventDefault();
+            const form = event.target;
+            const email = document.getElementById('newsletterEmail').value;
+            const csrfToken = form.querySelector('[name="csrf_token"]').value;
+            
+            fetch('/subscribe_newsletter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `email=${encodeURIComponent(email)}&csrf_token=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('newsletterModal').style.display = 'none';
+                    showToast('Successfully subscribed to newsletter!', 'success');
+                } else {
+                    showToast('Subscription failed. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('An error occurred. Please try again.', 'error');
+            });
+        }
+
+        function dismissNewsletter() {
+            fetch('/dismiss_newsletter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            });
+            document.getElementById('newsletterModal').style.display = 'none';
+        }
+
+        // Show newsletter modal after 2 seconds
+        {% if current_user.is_authenticated and not current_user.newsletter_popup_shown %}
+        setTimeout(() => {
+            const modal = document.getElementById('newsletterModal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }, 2000);
+        {% endif %}
+
+        // Service Worker registration for Push Notifications (v4.0.0)
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            navigator.serviceWorker.register('/static/js/sw.js')
+                .then(registration => {
+                    // Service Worker registered successfully
+                })
+                .catch(error => {
+                    // Service Worker registration failed (silent fail in production)
+                });
+        }
+
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const iconMap = {
+                'success': '✓',
+                'error': '✕',
+                'warning': '⚠',
+                'info': 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <span class="toast-icon">${iconMap[type] || 'ℹ'}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
     </script>
+
+    <!-- Newsletter Modal Styles -->
+    <style>
+        .newsletter-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .newsletter-popup {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            position: relative;
+            animation: slideUp 0.4s ease;
+        }
+
+        .newsletter-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: none;
+            font-size: 32px;
+            color: #605E5C;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .newsletter-close:hover {
+            color: #323130;
+        }
+
+        .newsletter-content h2 {
+            color: #0078D4;
+            margin: 0 0 16px 0;
+            font-size: 28px;
+        }
+
+        .newsletter-content p {
+            color: #323130;
+            margin: 0 0 24px 0;
+            line-height: 1.6;
+        }
+
+        .newsletter-content form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #605E5C;
+            border: 1px solid #D2D0CE;
+        }
+
+        .btn-secondary:hover {
+            background: #F3F2F1;
+            color: #323130;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
 </body>
 </html>

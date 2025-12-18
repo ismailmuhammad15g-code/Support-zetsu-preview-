@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broadcast News - ZetsuServ Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <h1>ZetsuServ Admin</h1>
+            </div>
+            <ul class="navbar-nav">
+                <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_broadcast') }}" class="nav-link active">Broadcast</a></li>
+                <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Broadcast Section -->
+    <section class="dashboard-section">
+        <div class="container">
+            <!-- Header -->
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">📢 Broadcast News</h1>
+                <p class="dashboard-subtitle">Send announcements to all subscribers with CPU-optimized batch processing</p>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📧</div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ subscriber_count }}</h3>
+                        <p class="stat-label">Email Subscribers</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔔</div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ push_subscriber_count }}</h3>
+                        <p class="stat-label">Push Subscribers</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Broadcast Form -->
+            <div class="card" style="margin-top: 32px;">
+                <h2 style="color: #0078D4; margin-bottom: 24px;">Create News Broadcast</h2>
+                <form method="POST" action="{{ url_for('admin_broadcast') }}" class="broadcast-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="form-group">
+                        <label for="title" class="form-label">News Title</label>
+                        <input 
+                            type="text" 
+                            id="title" 
+                            name="title" 
+                            class="form-input" 
+                            placeholder="Enter news title"
+                            maxlength="200"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="content" class="form-label">News Content</label>
+                        <textarea 
+                            id="content" 
+                            name="content" 
+                            class="form-textarea" 
+                            rows="8"
+                            placeholder="Enter your news announcement..."
+                            required
+                        ></textarea>
+                        <p class="helper-text">This will be sent to all {{ subscriber_count }} email subscribers</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-text">📤 Broadcast News</span>
+                        <span class="btn-spinner" style="display: none;">
+                            <span class="spinner"></span> Broadcasting...
+                        </span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Recent News -->
+            {% if recent_news %}
+            <div class="card" style="margin-top: 32px;">
+                <h2 style="color: #0078D4; margin-bottom: 24px;">Recent Broadcasts</h2>
+                <div class="news-list">
+                    {% for news in recent_news %}
+                    <div class="news-item">
+                        <h3 class="news-title">{{ news.title|e }}</h3>
+                        <p class="news-content">{{ news.content[:150]|e }}{% if news.content|length > 150 %}...{% endif %}</p>
+                        <p class="news-meta">Published: {{ news.published_at.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-icon {
+            font-size: 48px;
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: 700;
+            color: #0078D4;
+            margin: 0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #605E5C;
+            margin: 4px 0 0 0;
+        }
+
+        .broadcast-form {
+            max-width: 800px;
+        }
+
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .news-item {
+            padding: 16px;
+            background: #F3F2F1;
+            border-radius: 4px;
+            border-left: 4px solid #0078D4;
+        }
+
+        .news-title {
+            color: #323130;
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+
+        .news-content {
+            color: #605E5C;
+            margin: 0 0 8px 0;
+            line-height: 1.6;
+        }
+
+        .news-meta {
+            color: #A19F9D;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .helper-text {
+            color: #605E5C;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+    </style>
+
+    <script>
+        // Flash messages handling
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    showToast('{{ message|safe }}', '{{ category }}');
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const iconMap = {
+                'success': '✓',
+                'error': '✕',
+                'warning': '⚠',
+                'info': 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <span class="toast-icon">${iconMap[type] || 'ℹ'}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Form submission handling
+        document.querySelector('.broadcast-form').addEventListener('submit', function(e) {
+            const btn = this.querySelector('.btn-primary');
+            const btnText = btn.querySelector('.btn-text');
+            const btnSpinner = btn.querySelector('.btn-spinner');
+            
+            if (btnText && btnSpinner) {
+                btnText.style.display = 'none';
+                btnSpinner.style.display = 'inline-block';
+                btn.disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>
