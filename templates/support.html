@@ -270,10 +270,15 @@
             // Show upload progress
             showUploadProgress(file.name);
             
+            // Constants for upload progress simulation
+            const PROGRESS_INCREMENT = 10; // Progress increments in percentage
+            const PROGRESS_INTERVAL_MS = 150; // Update interval in milliseconds
+            const SUCCESS_DELAY_MS = 500; // Delay before showing success message
+            
             // Simulate upload progress (since this is client-side preview)
             let progress = 0;
             const progressInterval = setInterval(() => {
-                progress += 10;
+                progress += PROGRESS_INCREMENT;
                 updateProgress(progress);
                 
                 if (progress >= 100) {
@@ -282,9 +287,9 @@
                         hideUploadProgress();
                         showUploadSuccess(file.name);
                         fileUploaded = true;
-                    }, 500);
+                    }, SUCCESS_DELAY_MS);
                 }
-            }, 150);
+            }, PROGRESS_INTERVAL_MS);
         }
         
         function showUploadProgress(fileName) {

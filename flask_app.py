@@ -12,6 +12,7 @@ import io
 import smtplib
 import secrets
 import requests
+import logging
 from datetime import datetime, timezone
 from html import escape
 from email.mime.text import MIMEText
@@ -22,6 +23,13 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -244,7 +252,7 @@ def send_email(user_email, user_name, user_message, issue_type, ticket_id=None, 
     """
     # Check if email credentials are configured
     if not SENDER_EMAIL or not EMAIL_PASSWORD:
-        print("Email credentials not configured. Skipping email send.")
+        logger.info("Email credentials not configured. Skipping email send.")
         return False
     
     # Escape user input to prevent XSS in emails
@@ -369,7 +377,7 @@ def send_email(user_email, user_name, user_message, issue_type, ticket_id=None, 
             # Always close the server connection
             server.quit()
     except Exception as e:
-        print(f"Error sending email: {e}")
+        logger.error(f"Error sending email: {e}")
         return False
 
 
@@ -1188,7 +1196,7 @@ def clear_attachments():
                     os.remove(file_path)
                     deleted_count += 1
             except Exception as e:
-                print(f"Error deleting file {filename}: {e}")
+                logger.error(f"Error deleting file {filename}: {e}")
         
         if deleted_count > 0:
             flash(f'Successfully deleted {deleted_count} unused attachment(s).', 'success')
@@ -1196,7 +1204,7 @@ def clear_attachments():
             flash('No files were deleted.', 'info')
             
     except Exception as e:
-        print(f"Error clearing attachments: {e}")
+        logger.error(f"Error clearing attachments: {e}")
         flash('An error occurred while clearing attachments.', 'error')
     
     return redirect(url_for('dashboard'))
@@ -1227,7 +1235,7 @@ def delete_ticket(ticket_id):
                 try:
                     os.remove(file_path)
                 except Exception as e:
-                    print(f"Error deleting attachment file: {e}")
+                    logger.error(f"Error deleting attachment file: {e}")
         
         # Delete ticket from database
         ticket_id_str = ticket.ticket_id
@@ -1238,7 +1246,7 @@ def delete_ticket(ticket_id):
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error deleting ticket: {e}")
+        logger.error(f"Error deleting ticket: {e}")
         flash('An error occurred while deleting the ticket.', 'error')
     
     return redirect(url_for('dashboard'))
