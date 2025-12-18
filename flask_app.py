@@ -39,9 +39,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configure Flask app
-# IMPORTANT: Set SECRET_KEY via environment variable in production
-# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-insecure-key-change-in-production')
+# SECRET_KEY hardcoded for PythonAnywhere production deployment
+# This key is used for session management and CSRF protection
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a7f8d6e5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7')
 
 # Session configuration - Fix for redirect loops
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -55,7 +55,20 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 csrf = CSRFProtect(app)
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///support_tickets.db')
+# Absolute path for PythonAnywhere deployment
+# Check if we're on PythonAnywhere by looking for the directory
+pythonwhere_db_path = '/home/Supportzetsu/Support-zetsu-preview-/instance/support_tickets.db'
+if os.path.exists('/home/Supportzetsu/Support-zetsu-preview-'):
+    default_db_uri = f'sqlite:///{pythonwhere_db_path}'
+    # Ensure instance directory exists on PythonAnywhere
+    os.makedirs('/home/Supportzetsu/Support-zetsu-preview-/instance', exist_ok=True)
+else:
+    # Local development - use relative path
+    instance_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
+    os.makedirs(instance_dir, exist_ok=True)
+    default_db_uri = f'sqlite:///{instance_dir}/support_tickets.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', default_db_uri)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # File upload configuration
@@ -139,6 +152,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
+    name = db.Column(db.String(100), nullable=True)
     newsletter_subscribed = db.Column(db.Boolean, nullable=False, default=False)
     newsletter_popup_shown = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -224,7 +238,15 @@ class OTPVerification(db.Model):
     
     def is_expired(self):
         """Check if OTP is expired"""
-        return datetime.now(timezone.utc) > self.expires_at
+        # SQLite stores datetimes as naive, so we need to make expires_at timezone-aware
+        # if it isn't already
+        if self.expires_at.tzinfo is None:
+            # Assume stored time is UTC
+            expires_at_utc = self.expires_at.replace(tzinfo=timezone.utc)
+        else:
+            expires_at_utc = self.expires_at
+        
+        return datetime.now(timezone.utc) > expires_at_utc
 
 
 class NewsletterSubscription(db.Model):
