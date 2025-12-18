@@ -10,6 +10,75 @@ A professional, enterprise-grade Flask web application for comprehensive support
 
 ## 🎯 Features
 
+### 🆕 Latest Updates (v4.1.0) - **COMPREHENSIVE DIAGNOSTICS & ANALYTICS** 🚀
+
+**New Diagnostic Tools:**
+
+- **🏥 Health Check Endpoint** (`/health`)
+  - Real-time system health monitoring
+  - Database connection status
+  - Email configuration verification
+  - File system permissions check
+  - App configuration status
+  - Returns JSON data for programmatic access
+
+- **🗄️ Database Verification Endpoint** (`/db-verify`)
+  - Complete database schema inspection
+  - Column-by-column verification
+  - Row count for all tables
+  - Identifies missing columns or schema issues
+  - JSON output for easy troubleshooting
+
+- **🛠️ Database Migration Utility** (`db_migrate.py`)
+  - Interactive command-line tool
+  - Check database connection
+  - Verify all tables and columns
+  - Fix missing columns (safe, no data loss)
+  - Recreate database if needed
+  - Show detailed statistics
+
+**Enhanced Error Handling:**
+
+- **Custom 500 Error Handler**
+  - Detailed error messages in debug mode
+  - Troubleshooting steps and links
+  - Automatic database rollback
+  - Comprehensive logging
+
+- **Dashboard Error Resilience**
+  - Graceful degradation on database errors
+  - Detailed error logging
+  - User-friendly error messages
+  - Never crashes, always shows something
+
+**New Admin Features:**
+
+- **📊 Advanced Analytics Dashboard** (`/admin/analytics`)
+  - Visual charts with Chart.js
+  - Priority distribution (doughnut chart)
+  - Issue type distribution (bar chart)
+  - Tickets over time (line chart with 30-day history)
+  - Performance metrics
+  - Top users by ticket count
+  - Recent activity feed
+  - Resolution rate tracking
+  - Average response time calculation
+
+- **⚙️ System Settings Page** (`/admin/settings`)
+  - System information overview
+  - Database and storage statistics
+  - Configuration status indicators
+  - Email testing functionality
+  - Quick access to diagnostic tools
+  - Migration tool instructions
+  - Visual configuration status
+
+**Updated Admin Navigation:**
+- Unified navigation across all admin pages
+- Dashboard → Analytics → Settings → Broadcast → Logout
+- Clear active page indicators
+- Consistent user experience
+
 ### 🆕 Latest Updates (v4.0.0) - **CPU-OPTIMIZED FOR PYTHONANYWHERE** 🚀
 
 **Major Breaking Changes & New Features:**
@@ -836,7 +905,18 @@ Before going live, ensure:
 | `/reply_ticket/<id>` | POST | Reply to a ticket and mark as resolved |
 | `/export_tickets` | GET | Export all tickets to CSV file |
 | `/bulk_resolve` | POST | Mark multiple selected tickets as resolved |
+| `/delete_ticket/<id>` | POST | Delete individual ticket and attachment |
+| `/clear_attachments` | POST | Remove orphaned attachment files |
 | `/admin/broadcast` | GET, POST | Broadcast news to all subscribers (v4.0.0) |
+| `/admin/analytics` | GET | Advanced analytics dashboard with charts (v4.1.0) |
+| `/admin/settings` | GET, POST | System settings and configuration (v4.1.0) |
+
+### Diagnostic & Health Check Routes (v4.1.0)
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/health` | GET | System health check (JSON) - shows database, email, and file system status |
+| `/db-verify` | GET | Database schema verification (JSON) - detailed table and column information |
 
 ## 🎨 Design System
 
@@ -1190,7 +1270,54 @@ export EMAIL_PASSWORD=your-app-specific-password
 
 ### Debugging Tips
 
-**1. Enable Detailed Error Pages:**
+**1. Use the Health Check Endpoint:**
+
+Visit `/health` to get instant diagnostics:
+```bash
+curl https://your-domain.com/health | python -m json.tool
+```
+
+This shows:
+- ✅ Database connection: connected/disconnected
+- ✅ Tables exist: true/false
+- ✅ admin_reply column: exists/missing
+- ✅ Email configured: true/false
+- ✅ Upload directory: exists/writable
+- ✅ Secret key: set/default
+
+**2. Use the Database Verification Endpoint:**
+
+Visit `/db-verify` for detailed schema information:
+```bash
+curl https://your-domain.com/db-verify | python -m json.tool
+```
+
+This shows:
+- All table names
+- All columns with types
+- Row counts
+- Column nullability
+- Default values
+
+**3. Use the Analytics Dashboard:**
+
+Visit `/admin/analytics` to see:
+- Visual charts of ticket distribution
+- Performance metrics
+- Trends over time
+- Top users
+- Recent activity
+
+**4. Use the Settings Dashboard:**
+
+Visit `/admin/settings` to:
+- View system information
+- Check configuration status
+- Test email functionality
+- Access diagnostic tools
+- View database statistics
+
+**5. Enable Detailed Error Pages:**
 
 The app now has enhanced error handling. When debug mode is on, visiting a failing page will show:
 - The actual error message
@@ -1406,7 +1533,97 @@ For issues, questions, or contributions:
 
 ## 🔄 Changelog
 
-### Version 4.0.0 (Latest - December 2024) 🚀 **CPU-OPTIMIZED RELEASE**
+### Version 4.1.0 (Latest - December 2024) 🎉 **COMPREHENSIVE DIAGNOSTICS & ANALYTICS**
+
+#### 🚀 New Features
+
+**Diagnostic Tools:**
+- ✨ **NEW:** `/health` endpoint - Real-time system health monitoring
+  - Database connection status
+  - Email configuration verification
+  - File system permissions check
+  - App configuration details
+  - JSON response for programmatic access
+  
+- ✨ **NEW:** `/db-verify` endpoint - Database schema verification
+  - Complete schema inspection
+  - Column-by-column analysis
+  - Row counts for all tables
+  - Identifies schema issues
+  - JSON output for troubleshooting
+
+- ✨ **NEW:** `db_migrate.py` - Interactive database migration utility
+  - Check database connection
+  - Verify all tables and columns exist
+  - Fix missing columns (safe, no data loss)
+  - Recreate database option
+  - Show detailed statistics
+  - Interactive menu system
+
+**Admin Features:**
+- ✨ **NEW:** `/admin/analytics` - Advanced analytics dashboard
+  - Visual charts powered by Chart.js
+  - Priority distribution (doughnut chart)
+  - Issue type distribution (bar chart)
+  - 30-day ticket timeline (line chart)
+  - Performance metrics
+  - Top users by ticket count
+  - Recent activity feed
+  - Resolution rate tracking
+  - Average response time calculation
+
+- ✨ **NEW:** `/admin/settings` - System settings and configuration
+  - System information overview
+  - Database and storage statistics
+  - Configuration status indicators
+  - Email testing functionality
+  - Quick links to diagnostic tools
+  - Migration tool documentation
+  - Visual status cards
+
+#### 🔧 Improvements
+
+- 🔧 **ENHANCED:** Dashboard route with comprehensive error handling
+  - Graceful degradation on database errors
+  - Detailed error logging
+  - User-friendly error messages
+  - Never crashes, always displays
+
+- 🔧 **ENHANCED:** Custom 500 error handler
+  - Detailed error information in debug mode
+  - Troubleshooting steps and links
+  - Automatic database rollback
+  - Comprehensive logging with stack traces
+
+- 🔧 **ENHANCED:** Admin navigation consistency
+  - Unified navigation across all admin pages
+  - Clear active page indicators
+  - Logical page ordering
+
+#### 📝 Documentation
+
+- 📝 **DOCS:** Comprehensive troubleshooting guide in README
+  - Step-by-step diagnostic procedures
+  - Common error scenarios and solutions
+  - Database issue resolution
+  - Email configuration help
+  - File permission fixes
+  - PythonAnywhere-specific tips
+
+- 📝 **DOCS:** Health check and verification endpoints
+- 📝 **DOCS:** Database migration tool usage
+- 📝 **DOCS:** New admin features documentation
+- 📝 **DOCS:** Updated routes table with new endpoints
+
+#### 🛡️ Bug Fixes
+
+- 🐛 **FIXED:** Dashboard crashes on database errors
+- 🐛 **FIXED:** Missing error messages for database issues
+- 🐛 **FIXED:** No way to verify database schema without SSH access
+
+---
+
+### Version 4.0.0 (December 2024) 🚀 **CPU-OPTIMIZED RELEASE**
 
 #### 🎯 Breaking Changes
 - ⚠️ **Registration Changed:** No more admin whitelist! Open registration with email OTP verification
