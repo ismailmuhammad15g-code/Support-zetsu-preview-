@@ -38,6 +38,17 @@
             <div class="dashboard-header">
                 <h1 class="page-title">Admin Dashboard</h1>
                 <p class="page-subtitle">Manage and respond to support tickets</p>
+                
+                <!-- Email Configuration Status -->
+                {% if not email_configured %}
+                <div style="background: #FFF4CE; border-left: 4px solid #F7B500; padding: 12px 16px; border-radius: 4px; margin-bottom: 16px;">
+                    <p style="margin: 0; color: #323130;">
+                        <strong>⚠️ Email Not Configured:</strong> Email notifications are disabled. 
+                        Set <code>SENDER_EMAIL</code> and <code>EMAIL_PASSWORD</code> environment variables to enable email notifications.
+                    </p>
+                </div>
+                {% endif %}
+                
                 <div class="dashboard-stats">
                     <div class="stat-card">
                         <div class="stat-value">{{ open_count }}</div>
@@ -200,7 +211,28 @@
                                         {% if ticket.attachment_filename %}
                                         <div class="ticket-detail-section">
                                             <h4>Attachment:</h4>
-                                            <p>{{ ticket.attachment_filename }}</p>
+                                            {% if is_image_file(ticket.attachment_filename) %}
+                                                <div class="attachment-preview">
+                                                    <img src="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                                         alt="{{ ticket.attachment_filename }}"
+                                                         style="max-width: 100%; max-height: 400px; border-radius: 4px; margin-top: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                                    <p style="margin-top: 8px; color: #605E5C;">
+                                                        <a href="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                                           target="_blank" 
+                                                           style="color: #0078D4; text-decoration: none;">
+                                                            📥 Download {{ ticket.attachment_filename }}
+                                                        </a>
+                                                    </p>
+                                                </div>
+                                            {% else %}
+                                                <p>
+                                                    <a href="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                                       target="_blank"
+                                                       style="color: #0078D4; text-decoration: none;">
+                                                        📎 {{ ticket.attachment_filename }}
+                                                    </a>
+                                                </p>
+                                            {% endif %}
                                         </div>
                                         {% endif %}
                                         
@@ -281,7 +313,27 @@
                             
                             {% if ticket.attachment_filename %}
                             <div class="ticket-attachment">
-                                <strong>📎 Attachment:</strong> {{ ticket.attachment_filename }}
+                                <strong>📎 Attachment:</strong>
+                                {% if is_image_file(ticket.attachment_filename) %}
+                                    <div class="attachment-preview" style="margin-top: 8px;">
+                                        <img src="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                             alt="{{ ticket.attachment_filename }}"
+                                             style="max-width: 100%; max-height: 300px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <p style="margin-top: 8px;">
+                                            <a href="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                               target="_blank"
+                                               style="color: #0078D4; text-decoration: none;">
+                                                📥 Download {{ ticket.attachment_filename }}
+                                            </a>
+                                        </p>
+                                    </div>
+                                {% else %}
+                                    <a href="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                       target="_blank"
+                                       style="color: #0078D4; text-decoration: none;">
+                                        {{ ticket.attachment_filename }}
+                                    </a>
+                                {% endif %}
                             </div>
                             {% endif %}
                             
