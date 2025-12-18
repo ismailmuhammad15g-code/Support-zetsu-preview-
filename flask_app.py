@@ -39,9 +39,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configure Flask app
-# IMPORTANT: Set SECRET_KEY via environment variable in production
-# Generate with: python -c "import secrets; print(secrets.token_hex(32))"
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-insecure-key-change-in-production')
+# SECRET_KEY hardcoded for PythonAnywhere production deployment
+# This key is used for session management and CSRF protection
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a7f8d6e5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7')
 
 # Session configuration - Fix for redirect loops
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -55,7 +55,12 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 csrf = CSRFProtect(app)
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///support_tickets.db')
+# Absolute path for PythonAnywhere deployment
+# Falls back to relative path for local development
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL', 
+    'sqlite:////home/Supportzetsu/Support-zetsu-preview-/instance/support_tickets.db'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # File upload configuration
@@ -139,6 +144,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
+    name = db.Column(db.String(100), nullable=True)
     newsletter_subscribed = db.Column(db.Boolean, nullable=False, default=False)
     newsletter_popup_shown = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
