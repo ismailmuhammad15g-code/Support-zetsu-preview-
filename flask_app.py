@@ -37,6 +37,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # File upload configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx'}
+IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
@@ -219,8 +220,7 @@ def is_image_file(filename):
     """Check if file is an image based on extension"""
     if not filename:
         return False
-    image_extensions = {'png', 'jpg', 'jpeg', 'gif'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in image_extensions
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS
 
 
 def validate_email(email):
@@ -641,17 +641,28 @@ def uploaded_file(filename):
     """
     Serve uploaded files to authenticated admin users only
     Security: Only admin users can view uploaded files
+    Path traversal protection: secure_filename is already applied during upload
     """
     if not current_user.is_admin:
         flash('Access denied. Admin privileges required.', 'error')
         return redirect(url_for('home'))
     
+    # Additional security: validate filename doesn't contain path traversal attempts
+    if '..' in filename or '/' in filename or '\\' in filename:
+        flash('Invalid filename.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Check if file exists
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.isfile(file_path):
+        flash('File not found.', 'error')
+        return redirect(url_for('dashboard'))
+    
     try:
-        from flask import send_from_directory
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
     except Exception as e:
         print(f"Error serving file: {e}")
-        flash('File not found.', 'error')
+        flash('Error accessing file.', 'error')
         return redirect(url_for('dashboard'))
 
 
