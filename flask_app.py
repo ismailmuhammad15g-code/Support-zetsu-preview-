@@ -449,14 +449,54 @@ def send_admin_reply_email(user_email, user_name, ticket_id, original_message, a
 def send_to_webhook(ticket_data):
     """
     Send ticket data to n8n webhook for automation
+    
     Args:
-        ticket_data: Dictionary containing ticket information
+        ticket_data: Dictionary containing ticket information with keys:
+                    - name: User's name
+                    - email: User's email
+                    - issue_type: Type of issue
+                    - priority: Ticket priority
+                    - message: Issue description
+                    - ticket_id: Generated ticket ID
+                    - timestamp: ISO format timestamp
+    
     Returns:
         True if successful, False otherwise
+        
+    Raises:
+        No exceptions raised - all errors are caught and logged
     """
     # Check if webhook URL is configured
     if not N8N_WEBHOOK_URL:
         print("N8N_WEBHOOK_URL not configured. Skipping webhook send.")
+        return False
+    
+    # Validate webhook URL to prevent SSRF attacks
+    try:
+        from urllib.parse import urlparse
+        parsed_url = urlparse(N8N_WEBHOOK_URL)
+        
+        # Only allow HTTPS URLs for security
+        if parsed_url.scheme not in ['https', 'http']:
+            print(f"Invalid webhook URL scheme: {parsed_url.scheme}. Only HTTP/HTTPS allowed.")
+            return False
+        
+        # Block localhost and private IP ranges to prevent SSRF
+        if parsed_url.hostname in ['localhost', '127.0.0.1', '0.0.0.0']:
+            print("Webhook URL cannot point to localhost (SSRF protection)")
+            return False
+            
+        # Check for private IP ranges (basic check)
+        if parsed_url.hostname and (
+            parsed_url.hostname.startswith('10.') or
+            parsed_url.hostname.startswith('192.168.') or
+            parsed_url.hostname.startswith('172.16.')
+        ):
+            print("Webhook URL cannot point to private IP ranges (SSRF protection)")
+            return False
+            
+    except Exception as e:
+        print(f"Error validating webhook URL: {e}")
         return False
     
     try:

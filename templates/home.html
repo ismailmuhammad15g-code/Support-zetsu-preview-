@@ -123,8 +123,9 @@
         // Update greeting on page load
         updateGreeting();
         
-        // Update greeting every minute
-        setInterval(updateGreeting, 60000);
+        // Update greeting every hour (3600000ms) instead of every minute
+        // Greetings only change hourly, so no need for frequent updates
+        setInterval(updateGreeting, 3600000);
     </script>
 </body>
 </html>
