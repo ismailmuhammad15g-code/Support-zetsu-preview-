@@ -112,6 +112,7 @@
                 <div class="action-buttons">
                     <a href="{{ url_for('export_tickets') }}" class="btn btn-success btn-small">📥 Export to CSV</a>
                     <button onclick="bulkResolve()" class="btn btn-warning btn-small">✓ Bulk Resolve Selected</button>
+                    <button onclick="clearUnusedAttachments()" class="btn btn-danger btn-small">🗑️ Clear Unused Files</button>
                 </div>
             </div>
 
@@ -249,6 +250,7 @@
                                         <div class="ticket-detail-section">
                                             <h4>Send Reply:</h4>
                                             <form method="POST" action="{{ url_for('reply_ticket', ticket_id=ticket.id) }}" class="reply-form">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <textarea 
                                                     name="admin_reply" 
                                                     class="form-textarea" 
@@ -262,6 +264,17 @@
                                             </form>
                                         </div>
                                         {% endif %}
+                                        
+                                        <!-- Delete Ticket Button -->
+                                        <div class="ticket-detail-section">
+                                            <button 
+                                                onclick="deleteTicket({{ ticket.id }}, '{{ ticket.ticket_id }}')" 
+                                                class="btn btn-danger btn-small"
+                                                style="margin-top: 8px;"
+                                            >
+                                                🗑️ Delete Ticket
+                                            </button>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -356,6 +369,7 @@
                             
                             <div id="mobile-reply-{{ ticket.id }}" class="mobile-reply-form" style="display: none;">
                                 <form method="POST" action="{{ url_for('reply_ticket', ticket_id=ticket.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <textarea 
                                         name="admin_reply" 
                                         class="form-textarea" 
@@ -433,6 +447,13 @@
             form.method = 'POST';
             form.action = '{{ url_for("bulk_resolve") }}';
             
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
+            
             checkboxes.forEach(checkbox => {
                 const input = document.createElement('input');
                 input.type = 'hidden';
@@ -440,6 +461,48 @@
                 input.value = checkbox.value;
                 form.appendChild(input);
             });
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
+        function clearUnusedAttachments() {
+            if (!confirm('This will delete all attachment files that are no longer referenced by any tickets. This action cannot be undone. Continue?')) {
+                return;
+            }
+            
+            // Create form and submit
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("clear_attachments") }}';
+            
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
+        function deleteTicket(ticketId, ticketIdStr) {
+            if (!confirm(`Are you sure you want to permanently delete ticket ${ticketIdStr}? This will also delete its attachment. This action cannot be undone.`)) {
+                return;
+            }
+            
+            // Create form and submit
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/delete_ticket/${ticketId}`;
+            
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
             
             document.body.appendChild(form);
             form.submit();

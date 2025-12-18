@@ -1403,11 +1403,73 @@ body {
     background: #d39300;
 }
 
+.btn-danger {
+    background: #A80000;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #8B0000;
+}
+
 /* Additional stat cards for new metrics */
 .dashboard-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
+}
+
+/* ========================================
+   FILE UPLOAD PROGRESS & LOADING STATES
+   ======================================== */
+
+/* Upload progress container */
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #E1DFDD;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0078D4, #106EBE);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* Upload spinner */
+.upload-spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #E1DFDD;
+    border-top-color: #0078D4;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* Submit button spinner */
+.submit-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Loading state for buttons */
+.btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
