@@ -42,6 +42,14 @@ app = Flask(__name__)
 # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-insecure-key-change-in-production')
 
+# Session configuration - Fix for redirect loops
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# SESSION_COOKIE_SECURE should be True in production with HTTPS
+# Set via environment variable: export SESSION_COOKIE_SECURE=True
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+
 # CSRF Protection
 csrf = CSRFProtect(app)
 
@@ -69,6 +77,13 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'info'
+
+# Handle unauthorized access
+@login_manager.unauthorized_handler
+def unauthorized():
+    """Handle unauthorized access attempts"""
+    flash('Please log in to access this page.', 'info')
+    return redirect(url_for('login'))
 
 # Email configuration
 # IMPORTANT: Set these via environment variables in production
@@ -288,6 +303,23 @@ with app.app_context():
 
 # ========================================
 # UTILITY FUNCTIONS
+# ========================================
+
+def get_redirect_for_user(user):
+    """
+    Get the appropriate redirect URL based on user role.
+    Admin users go to dashboard, regular users go to home.
+    
+    Args:
+        user: User object from Flask-Login
+        
+    Returns:
+        Redirect URL string
+    """
+    if user.is_admin:
+        return url_for('dashboard')
+    else:
+        return url_for('home')
 # ========================================
 
 def generate_ticket_id():
@@ -1090,7 +1122,7 @@ def register():
     """
     # Redirect if already logged in
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+        return redirect(get_redirect_for_user(current_user))
     
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
@@ -1171,7 +1203,7 @@ def login():
     """
     # Redirect if already logged in
     if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+        return redirect(get_redirect_for_user(current_user))
     
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
@@ -1191,11 +1223,11 @@ def login():
             login_user(user, remember=remember)
             flash(f'Welcome back, {user.email}!', 'success')
             
-            # Redirect to next page or dashboard
+            # Redirect to next page or appropriate page based on user role
             next_page = request.args.get('next')
             if next_page:
                 return redirect(next_page)
-            return redirect(url_for('dashboard'))
+            return redirect(get_redirect_for_user(user))
         else:
             flash('Invalid email or password.', 'error')
             return redirect(url_for('login'))
