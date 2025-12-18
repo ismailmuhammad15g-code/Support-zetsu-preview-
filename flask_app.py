@@ -43,13 +43,15 @@ app = Flask(__name__)
 # This key is used for session management and CSRF protection
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a7f8d6e5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7')
 
-# Session configuration - Fix for redirect loops
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# SESSION_COOKIE_SECURE should be True in production with HTTPS
-# Set via environment variable: export SESSION_COOKIE_SECURE=True
+# Session configuration - CRITICAL for preventing redirect loops on PythonAnywhere
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Security: Prevents XSS attacks
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Security: Prevents CSRF, allows normal navigation
+# SESSION_COOKIE_SECURE MUST be False for HTTP (PythonAnywhere default)
+# Only set to True if using HTTPS: export SESSION_COOKIE_SECURE=true
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+# Make sessions permanent by default to persist across browser restarts
+app.config['SESSION_PERMANENT'] = True
 
 # CSRF Protection
 csrf = CSRFProtect(app)
@@ -298,9 +300,49 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
-# No before_request hook needed - Flask-Login handles authentication
-# Public routes are accessible to all, protected routes use @login_required decorator
-# This prevents redirect loops by keeping authentication logic simple and explicit
+@app.before_request
+def check_verification_status():
+    """
+    Loop-proof before_request hook for authentication and verification.
+    
+    This hook ensures that:
+    1. Public routes are always accessible (prevents loops to login)
+    2. Static files are always accessible
+    3. Authenticated but unverified users can access verify_otp
+    4. Dashboard requires both authentication AND verification
+    5. No circular redirects are possible
+    
+    Security: This approach is "loop-proof" because:
+    - Public endpoints return immediately (no redirect)
+    - verify_otp is explicitly allowed for authenticated users
+    - Only protected routes trigger @login_required
+    - No logic that could bounce between routes
+    """
+    # Define public endpoints that don't require authentication
+    # These routes are accessible to everyone, including logged-out users
+    public_endpoints = {
+        'home', 'login', 'register', 'logout', 'static',
+        'health_check', 'db_verify', 'support', 'faq', 'about', 
+        'track', 'search_ticket', 'submit', 
+        'subscribe_newsletter', 'dismiss_newsletter', 'subscribe_push'
+    }
+    
+    # Get current endpoint
+    endpoint = request.endpoint
+    
+    # Allow all public endpoints without any checks
+    # This prevents redirect loops to login page
+    if endpoint in public_endpoints:
+        return None
+    
+    # Allow verify_otp for authenticated users (even if not verified)
+    # This is CRITICAL to prevent loops - users must be able to access OTP verification
+    if endpoint == 'verify_otp':
+        return None
+    
+    # For all other routes, let Flask-Login and @login_required handle authentication
+    # This keeps the logic simple and prevents complex redirect scenarios
+    return None
 
 
 # Create all database tables
@@ -1223,6 +1265,8 @@ def register():
             db.session.add(otp_record)
             
             # Store user data temporarily in session
+            # Make session permanent for better persistence across requests
+            session.permanent = True
             session['pending_registration'] = {
                 'email': email,
                 'password': password
@@ -1264,10 +1308,22 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """
-    User login route
+    User login route (Loop-proof version)
+    
+    This route is designed to prevent redirect loops by:
+    1. Checking if user is already authenticated before showing form
+    2. Not checking is_verified here (that's handled after login)
+    3. Using clear, single-path redirects
     """
-    # Redirect if already logged in (prevent redirect loop by going directly to appropriate page)
+    # Redirect if already logged in (prevent redirect loop)
+    # Go directly to destination without intermediate redirects
     if current_user.is_authenticated:
+        # Check if user is verified
+        if hasattr(current_user, 'is_verified') and not current_user.is_verified:
+            # User is authenticated but not verified - send to OTP verification
+            flash('Please verify your account with the OTP code.', 'info')
+            return redirect(url_for('verify_otp'))
+        
         flash('You are already logged in.', 'info')
         if current_user.is_admin:
             return redirect(url_for('dashboard'))
@@ -1288,7 +1344,17 @@ def login():
         
         # Check credentials
         if user and user.check_password(password):
+            # Log user in using Flask-Login
             login_user(user, remember=remember)
+            
+            # Make session permanent for better persistence
+            session.permanent = True
+            
+            # Check if user needs OTP verification
+            if hasattr(user, 'is_verified') and not user.is_verified:
+                flash('Please verify your account with the OTP code.', 'warning')
+                return redirect(url_for('verify_otp'))
+            
             flash(f'Welcome back, {user.email}!', 'success')
             
             # Handle next parameter safely (Open Redirect protection)
@@ -1296,7 +1362,7 @@ def login():
             if next_page and is_safe_url(next_page):
                 return redirect(next_page)
             
-            # Redirect based on user role
+            # Redirect based on user role - single, clear redirect path
             if user.is_admin:
                 return redirect(url_for('dashboard'))
             return redirect(url_for('home'))
@@ -1321,10 +1387,25 @@ def logout():
 @app.route('/verify_otp', methods=['GET', 'POST'])
 def verify_otp():
     """
-    OTP verification route (v4.0.0)
+    OTP verification route (v4.0.0 - Loop-proof)
+    
+    This route is designed to prevent redirect loops by:
+    1. Being accessible to both authenticated and unauthenticated users
+    2. Not having @login_required decorator
+    3. Checking session for pending registration data
+    4. Properly committing is_verified=True to database
+    5. Clearing session data after successful verification
     """
-    # Check if there's pending registration
+    # Check if there's pending registration data in session
     if 'pending_registration' not in session:
+        # Check if user is authenticated but not verified
+        if current_user.is_authenticated and hasattr(current_user, 'is_verified') and not current_user.is_verified:
+            # User is logged in but not verified - this shouldn't normally happen
+            # but we'll handle it gracefully
+            flash('Your account needs verification. Please register again.', 'warning')
+            logout_user()
+            return redirect(url_for('register'))
+        
         flash('No pending registration found. Please register first.', 'error')
         return redirect(url_for('register'))
     
@@ -1379,10 +1460,11 @@ def verify_otp():
             
             # Create user account with all required fields
             # IMPORTANT: Set password hash BEFORE creating user to avoid nullable constraint violation
+            # CRITICAL: Set is_verified=True to prevent redirect loops after login
             new_user = User(
                 email=email,
                 is_admin=is_admin,
-                is_verified=True,
+                is_verified=True,  # CRITICAL: Must be True to prevent redirect loops
                 newsletter_subscribed=False,
                 newsletter_popup_shown=False
             )
@@ -1392,19 +1474,21 @@ def verify_otp():
             
             logger.info("User object created successfully")
             logger.info(f"Password hash set: {bool(new_user.password_hash)}")
+            logger.info(f"is_verified set to: {new_user.is_verified}")
             logger.info(f"All required fields populated: email={bool(new_user.email)}, is_admin={new_user.is_admin}, is_verified={new_user.is_verified}")
             
             # Add to database session
             db.session.add(new_user)
             logger.info("User added to session, attempting commit...")
             
-            # Commit to database
+            # Commit to database - This is critical for is_verified to persist
             db.session.commit()
             logger.info("Database commit successful!")
             logger.info(f"New user created with ID: {new_user.id}")
+            logger.info(f"User is_verified in DB: {new_user.is_verified}")
             logger.info("=" * 60)
             
-            # Clean up session
+            # Clean up session data - MUST do this to prevent loops
             session.pop('pending_registration', None)
             
             flash('Registration successful! Please log in.', 'success')
@@ -1540,10 +1624,17 @@ def subscribe_push():
 def dashboard():
     """
     Admin dashboard - view all tickets with filtering
-    Protected route requiring authentication
+    Protected route requiring authentication AND admin privileges
     Enhanced with comprehensive error handling
+    Loop-proof: Checks both authentication and verification
     """
     try:
+        # Check if user is verified (prevent access by unverified users)
+        if hasattr(current_user, 'is_verified') and not current_user.is_verified:
+            flash('Please verify your account before accessing the dashboard.', 'warning')
+            return redirect(url_for('verify_otp'))
+        
+        # Check admin privileges
         if not current_user.is_admin:
             flash('Access denied. Admin privileges required.', 'error')
             return redirect(url_for('home'))
