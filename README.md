@@ -2,14 +2,24 @@
 
 A professional, enterprise-grade Flask web application for comprehensive support ticket management, styled with Microsoft Fluent Design System.
 
-![Version](https://img.shields.io/badge/version-3.2.0-blue)
+![Version](https://img.shields.io/badge/version-3.3.0-blue)
 ![Python](https://img.shields.io/badge/python-3.7+-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0.0-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🎯 Features
 
-### 🆕 Latest Updates (v3.2.0)
+### 🆕 Latest Updates (v3.3.0)
+
+- **📤 File Upload Progress** - Microsoft-style upload progress with real-time visual feedback
+- **⏳ Submit Button Loading** - Loading spinner when submitting forms
+- **🗑️ Admin File Management** - Clear unused attachments and delete individual tickets
+- **🔒 CSRF Protection** - Complete Cross-Site Request Forgery protection on all forms
+- **✅ Enhanced Validation** - Client-side file size and type validation
+- **🎨 Improved UX** - Success indicators for file uploads with visual feedback
+- **🛡️ Security Hardening** - Additional security measures throughout the application
+
+### Previous Updates (v3.2.0)
 
 - **🔗 Webhook Integration** - Automated ticket submission to n8n or other automation platforms
 - **🌅 Dynamic Greetings** - Time-aware greetings that change throughout the day
@@ -22,9 +32,11 @@ A professional, enterprise-grade Flask web application for comprehensive support
 
 #### For Users (Public Access)
 - **Submit Support Tickets** - Easy-to-use form with validation
+- **File Upload with Progress** - Real-time upload progress indicator for attachments
 - **Multiple Issue Types** - Technical Support, Billing, Bug Reports, Feature Requests, etc.
 - **Priority Levels** - Mark tickets as Low, Medium, High, or Urgent
 - **File Attachments** - Upload documents, images, or text files (up to 5MB)
+- **Client-side Validation** - Instant feedback on file size and type before upload
 - **Ticket Tracking** - Search and view your tickets by ID or email
 - **Email Confirmations** - Receive automatic confirmation emails with ticket details
 - **Unique Ticket IDs** - Every ticket gets a unique ID (format: ZS-YYYYMMDD-XXXXXX)
@@ -36,6 +48,8 @@ A professional, enterprise-grade Flask web application for comprehensive support
 - **Real-time Statistics** - View counts for Open, Resolved, Urgent, and High Priority tickets
 - **Reply to Tickets** - Respond directly to users and auto-mark as resolved
 - **Bulk Operations** - Select and resolve multiple tickets at once
+- **Delete Tickets** - Remove individual tickets with their attachments
+- **Clear Unused Files** - One-click cleanup of orphaned attachment files
 - **CSV Export** - Export all ticket data to CSV for reporting
 - **Email Notifications** - Automated email replies to users with your responses (optional)
 - **Email Status Indicator** - Dashboard shows if email is configured with helpful setup instructions
@@ -45,6 +59,7 @@ A professional, enterprise-grade Flask web application for comprehensive support
 
 ### 🔐 Authentication & Security
 
+- **CSRF Protection** - Cross-Site Request Forgery protection on all forms
 - **Whitelist-Based Registration** - Only authorized emails can create admin accounts
 - **Secure Login System** - Password hashing with Werkzeug PBKDF2
 - **Session Management** - Flask-Login with "Remember Me" option
@@ -777,6 +792,8 @@ Before going live, ensure:
 ## 🔒 Security Features
 
 ### Current Implementation
+- ✅ **CSRF Protection** - Flask-WTF CSRF tokens on all forms (New in v3.3.0)
+- ✅ **Client-side Validation** - File size and type validation before upload (New in v3.3.0)
 - ✅ Server-side input validation
 - ✅ Jinja2 auto-escaping (XSS protection)
 - ✅ Input sanitization
@@ -794,8 +811,8 @@ Before going live, ensure:
 1. **SECRET_KEY** - Use strong random value (never commit to git)
 2. **Debug Mode** - Set `debug=False` in production
 3. **HTTPS** - Enable SSL/TLS (automatic on PythonAnywhere)
-4. **CSRF Protection** - Implement Flask-WTF forms
-5. **Rate Limiting** - Add Flask-Limiter
+4. **CSRF Protection** - ✅ Already implemented with Flask-WTF (v3.3.0)
+5. **Rate Limiting** - Add Flask-Limiter for additional DDoS protection (optional)
 6. **Input Validation** - Already implemented
 7. **Database Backups** - Regular automated backups
 8. **Email Security** - Use app-specific passwords
@@ -1013,7 +1030,62 @@ For issues, questions, or contributions:
 
 ## 🔄 Changelog
 
-### Version 3.2.0 (Latest - December 2024) 🎉
+### Version 3.3.0 (Latest - December 2024) 🎉
+
+#### 🚀 New Features
+- ✨ **NEW:** **File Upload Progress Indicator** - Microsoft-style upload experience
+  - Real-time progress bar during file upload
+  - Animated loading spinner
+  - File name display with upload status
+  - Success confirmation with checkmark icon
+  - Smooth animations and transitions
+  
+- ✨ **NEW:** **Submit Button Loading State** - Better form submission feedback
+  - Loading spinner appears when form is submitted
+  - Button disabled during submission to prevent double-submit
+  - Clear visual feedback that form is processing
+  
+- ✨ **NEW:** **Admin File Management** - Clean up and manage attachments
+  - **Clear Unused Files** button to remove orphaned attachments
+  - Identifies files not referenced by any tickets
+  - One-click cleanup with confirmation dialog
+  - Helps maintain disk space and organization
+  
+- ✨ **NEW:** **Delete Individual Tickets** - Complete ticket removal
+  - Delete button for each ticket in dashboard
+  - Removes ticket and associated attachment file
+  - Confirmation dialog prevents accidental deletion
+  - Admin-only access for security
+
+#### 🔒 Security Enhancements
+- 🔐 **SECURITY:** **CSRF Protection** - Complete Cross-Site Request Forgery protection
+  - Flask-WTF CSRF tokens on all forms
+  - Support form, login, register, track ticket forms
+  - Dashboard reply, bulk resolve, and delete operations
+  - Dynamic CSRF token injection for JavaScript-created forms
+  
+- 🔐 **SECURITY:** **Client-Side Validation** - Enhanced file upload security
+  - File size validation (5MB limit) before upload
+  - File type validation against allowed extensions
+  - Immediate user feedback on invalid files
+  - Prevents unnecessary server requests
+
+#### 🎨 UI/UX Improvements
+- 🎨 Upload progress bar with gradient animation
+- 🎨 Success state for completed uploads
+- 🎨 Danger button styling for delete operations
+- 🎨 Consistent loading spinners across the application
+- 🎨 Better visual hierarchy in admin dashboard
+
+#### 📝 Documentation
+- 📝 Updated README with v3.3.0 features
+- 📝 Added file management documentation
+- 📝 Enhanced security section with new protections
+- 📝 Updated feature list with new capabilities
+
+---
+
+### Version 3.2.0 (December 2024) 🎉
 
 #### 🚀 New Features
 - ✨ **NEW:** **n8n Webhook Integration** - Automated ticket data submission to external automation platforms
