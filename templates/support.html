@@ -275,7 +275,7 @@
             const PROGRESS_INTERVAL_MS = 150; // Update interval in milliseconds
             const SUCCESS_DELAY_MS = 500; // Delay before showing success message
             
-            // Simulate upload progress (since this is client-side preview)
+            // Simulate upload progress (file is staged locally, actual upload happens on form submit)
             let progress = 0;
             const progressInterval = setInterval(() => {
                 progress += PROGRESS_INCREMENT;

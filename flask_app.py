@@ -757,17 +757,18 @@ def submit():
         db.session.commit()
         
         # Print to console for debugging
-        print("=" * 50)
-        print("NEW SUPPORT TICKET RECEIVED")
-        print("=" * 50)
-        print(f"Ticket ID: {ticket_id}")
-        print(f"Name: {name}")
-        print(f"Email: {email}")
-        print(f"Issue Type: {issue_type}")
-        print(f"Priority: {priority}")
-        print(f"Message: {message}")
-        print(f"Attachment: {attachment_filename}")
-        print("=" * 50)
+        # Log ticket creation for monitoring
+        logger.info("=" * 50)
+        logger.info("NEW SUPPORT TICKET RECEIVED")
+        logger.info("=" * 50)
+        logger.info(f"Ticket ID: {ticket_id}")
+        logger.info(f"Name: {name}")
+        logger.info(f"Email: {email}")
+        logger.info(f"Issue Type: {issue_type}")
+        logger.info(f"Priority: {priority}")
+        logger.info(f"Message: {message[:100]}...")  # Truncate long messages
+        logger.info(f"Attachment: {attachment_filename}")
+        logger.info("=" * 50)
         
         # Send email notifications
         email_sent = send_email(email, name, message, issue_type, ticket_id, priority)
@@ -1146,7 +1147,7 @@ def bulk_resolve():
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error in bulk resolve: {e}")
+        logger.error(f"Error in bulk resolve: {e}")
         flash('An error occurred while resolving tickets.', 'error')
     
     return redirect(url_for('dashboard'))
@@ -1165,12 +1166,13 @@ def clear_attachments():
         return redirect(url_for('home'))
     
     try:
-        # Get all attachment filenames from database
-        tickets = Ticket.query.all()
+        # Get all attachment filenames from database (efficient query)
         db_filenames = set()
-        for ticket in tickets:
-            if ticket.attachment_filename:
-                db_filenames.add(ticket.attachment_filename)
+        attachment_results = db.session.query(Ticket.attachment_filename).filter(
+            Ticket.attachment_filename.isnot(None)
+        ).all()
+        for result in attachment_results:
+            db_filenames.add(result[0])
         
         # Get all files in uploads directory
         uploads_dir = app.config['UPLOAD_FOLDER']
