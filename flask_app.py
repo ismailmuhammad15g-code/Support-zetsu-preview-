@@ -169,6 +169,14 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Verify password against hash"""
         return check_password_hash(self.password_hash, password)
+    
+    def needs_verification(self):
+        """
+        Check if user needs OTP verification.
+        Returns True if user is authenticated but not verified.
+        Helper method to centralize verification logic and prevent code duplication.
+        """
+        return hasattr(self, 'is_verified') and not self.is_verified
 
 
 class Ticket(db.Model):
@@ -1318,8 +1326,8 @@ def login():
     # Redirect if already logged in (prevent redirect loop)
     # Go directly to destination without intermediate redirects
     if current_user.is_authenticated:
-        # Check if user is verified
-        if hasattr(current_user, 'is_verified') and not current_user.is_verified:
+        # Check if user is verified using helper method
+        if current_user.needs_verification():
             # User is authenticated but not verified - send to OTP verification
             flash('Please verify your account with the OTP code.', 'info')
             return redirect(url_for('verify_otp'))
@@ -1350,8 +1358,8 @@ def login():
             # Make session permanent for better persistence
             session.permanent = True
             
-            # Check if user needs OTP verification
-            if hasattr(user, 'is_verified') and not user.is_verified:
+            # Check if user needs OTP verification using helper method
+            if user.needs_verification():
                 flash('Please verify your account with the OTP code.', 'warning')
                 return redirect(url_for('verify_otp'))
             
@@ -1398,8 +1406,8 @@ def verify_otp():
     """
     # Check if there's pending registration data in session
     if 'pending_registration' not in session:
-        # Check if user is authenticated but not verified
-        if current_user.is_authenticated and hasattr(current_user, 'is_verified') and not current_user.is_verified:
+        # Check if user is authenticated but not verified using helper method
+        if current_user.is_authenticated and current_user.needs_verification():
             # User is logged in but not verified - this shouldn't normally happen
             # but we'll handle it gracefully
             flash('Your account needs verification. Please register again.', 'warning')
@@ -1630,7 +1638,8 @@ def dashboard():
     """
     try:
         # Check if user is verified (prevent access by unverified users)
-        if hasattr(current_user, 'is_verified') and not current_user.is_verified:
+        # Use helper method for cleaner code
+        if current_user.needs_verification():
             flash('Please verify your account before accessing the dashboard.', 'warning')
             return redirect(url_for('verify_otp'))
         
