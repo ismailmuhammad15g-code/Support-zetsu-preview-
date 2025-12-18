@@ -37,7 +37,11 @@ A professional, enterprise-grade Flask web application for comprehensive support
 - **Reply to Tickets** - Respond directly to users and auto-mark as resolved
 - **Bulk Operations** - Select and resolve multiple tickets at once
 - **CSV Export** - Export all ticket data to CSV for reporting
-- **Email Notifications** - Automated email replies to users with your responses
+- **Email Notifications** - Automated email replies to users with your responses (optional)
+- **Email Status Indicator** - Dashboard shows if email is configured with helpful setup instructions
+- **Image Attachments Preview** - View uploaded images inline in the dashboard
+- **Secure File Access** - Admin-only access to uploaded files with download option
+- **Detailed Error Messages** - Clear feedback when email or other features fail
 
 ### 🔐 Authentication & Security
 
@@ -839,6 +843,92 @@ Before going live, ensure:
 
 ### Test Data
 Sample tickets are automatically created when you submit forms. Use the Track Ticket page to view them.
+
+## 🔧 Troubleshooting
+
+### Email Notification Issues
+
+**Problem:** Admin receives message "Reply saved and ticket marked as Resolved, but email notification failed."
+
+**Solution:**
+
+1. **Check Email Configuration Status:**
+   - The dashboard now displays a warning banner if email is not configured
+   - Look for the yellow warning banner at the top of the dashboard
+
+2. **Configure Email Credentials:**
+   Set the following environment variables:
+   ```bash
+   # For Gmail (recommended)
+   export SENDER_EMAIL=your-email@gmail.com
+   export EMAIL_PASSWORD=your-app-specific-password
+   export SMTP_SERVER=smtp.gmail.com
+   export SMTP_PORT=587
+   ```
+
+3. **Generate Gmail App-Specific Password:**
+   - Go to Google Account Settings → Security → 2-Step Verification → App passwords
+   - Generate a new app password for "Mail"
+   - Use this password (not your regular Gmail password)
+
+4. **For Other Email Providers:**
+   - **Outlook/Office365:**
+     - SMTP_SERVER: smtp.office365.com
+     - SMTP_PORT: 587
+   - **Yahoo:**
+     - SMTP_SERVER: smtp.mail.yahoo.com
+     - SMTP_PORT: 587
+
+5. **Test Email Configuration:**
+   - Submit a test ticket as a user
+   - Reply to the ticket as admin
+   - Check if email notification was sent successfully
+
+**Note:** Email is optional. The system works perfectly without email configuration - tickets are still saved and managed normally, but users won't receive email notifications.
+
+### Image Attachments Not Displaying
+
+**Problem:** Admin can see filename but not the actual image.
+
+**Solution:** This has been fixed in the latest version. Images now display inline in the admin dashboard with:
+- Full image preview for image files (.png, .jpg, .jpeg, .gif)
+- Download link for all attachments
+- Secure admin-only access to uploaded files
+
+**To verify the fix:**
+1. Submit a ticket with an image attachment
+2. Login to admin dashboard
+3. Click "View" on the ticket
+4. The image should display inline with a download link below it
+
+### Common Deployment Issues
+
+**Issue:** Database errors on PythonAnywhere
+
+**Solution:**
+```bash
+# Delete old database and let it recreate
+rm ~/Support-zetsu-preview-/support_tickets.db
+# Reload web app - database will auto-create with fresh schema
+```
+
+**Issue:** Uploaded files not accessible
+
+**Solution:**
+```bash
+# Ensure uploads directory exists with proper permissions
+mkdir -p ~/Support-zetsu-preview-/uploads
+chmod 755 ~/Support-zetsu-preview-/uploads
+```
+
+**Issue:** Import errors for new dependencies
+
+**Solution:**
+```bash
+# Reinstall all dependencies
+pip3 install --user -r requirements.txt
+# Reload web app
+```
 
 ## 📦 Dependencies
 
