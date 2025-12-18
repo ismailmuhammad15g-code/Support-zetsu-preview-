@@ -165,7 +165,7 @@ class FAQ(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     """Load user by ID for Flask-Login"""
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
 # Create all database tables
@@ -794,7 +794,10 @@ def reply_ticket(ticket_id):
         return redirect(url_for('home'))
     
     # Get the ticket
-    ticket = Ticket.query.get_or_404(ticket_id)
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        flash('Ticket not found.', 'error')
+        return redirect(url_for('dashboard'))
     
     # Get admin reply from form
     admin_reply = request.form.get('admin_reply', '').strip()
