@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Flask, render_template, request, redirect, url_for, flash, session, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -37,6 +37,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # File upload configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx'}
+IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
@@ -215,6 +216,13 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def is_image_file(filename):
+    """Check if file is an image based on extension"""
+    if not filename:
+        return False
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in IMAGE_EXTENSIONS
+
+
 def validate_email(email):
     """
     Validate email format using regex
@@ -364,12 +372,13 @@ def send_email(user_email, user_name, user_message, issue_type, ticket_id=None, 
 def send_admin_reply_email(user_email, user_name, ticket_id, original_message, admin_reply):
     """
     Send email to user with admin's reply
-    Returns True if successful, False otherwise
+    Returns tuple (success: bool, error_message: str or None)
     """
     # Check if email credentials are configured
     if not SENDER_EMAIL or not EMAIL_PASSWORD:
-        print("Email credentials not configured. Skipping email send.")
-        return False
+        error_msg = "Email credentials not configured. Please set SENDER_EMAIL and EMAIL_PASSWORD environment variables."
+        print(error_msg)
+        return False, error_msg
     
     # Escape user input to prevent XSS in emails
     safe_name = escape(user_name)
@@ -438,12 +447,21 @@ def send_admin_reply_email(user_email, user_name, ticket_id, original_message, a
             server.starttls()
             server.login(SENDER_EMAIL, EMAIL_PASSWORD)
             server.sendmail(SENDER_EMAIL, user_email, msg.as_string())
-            return True
+            return True, None
         finally:
             server.quit()
+    except smtplib.SMTPAuthenticationError as e:
+        error_msg = f"SMTP Authentication failed. Please check SENDER_EMAIL and EMAIL_PASSWORD. Error: {str(e)}"
+        print(error_msg)
+        return False, error_msg
+    except smtplib.SMTPException as e:
+        error_msg = f"SMTP error occurred: {str(e)}"
+        print(error_msg)
+        return False, error_msg
     except Exception as e:
-        print(f"Error sending admin reply email: {e}")
-        return False
+        error_msg = f"Error sending admin reply email: {str(e)}"
+        print(error_msg)
+        return False, error_msg
 
 
 def send_to_webhook(ticket_data):
@@ -616,6 +634,37 @@ def search_ticket():
         return redirect(url_for('track'))
     
     return render_template('track.html', tickets=tickets, search_query=search_query)
+
+@app.route('/uploads/<filename>')
+@login_required
+def uploaded_file(filename):
+    """
+    Serve uploaded files to authenticated admin users only
+    Security: Only admin users can view uploaded files
+    Path traversal protection: secure_filename is already applied during upload
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    # Additional security: validate filename doesn't contain path traversal attempts
+    if '..' in filename or '/' in filename or '\\' in filename:
+        flash('Invalid filename.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Check if file exists
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.isfile(file_path):
+        flash('File not found.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except Exception as e:
+        print(f"Error serving file: {e}")
+        flash('Error accessing file.', 'error')
+        return redirect(url_for('dashboard'))
+
 
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -910,6 +959,9 @@ def dashboard():
     urgent_count = sum(1 for t in all_tickets if t.priority == 'Urgent')
     high_count = sum(1 for t in all_tickets if t.priority == 'High')
     
+    # Check email configuration status
+    email_configured = bool(SENDER_EMAIL and EMAIL_PASSWORD)
+    
     return render_template('dashboard.html', 
                          tickets=tickets,
                          open_count=open_count,
@@ -921,7 +973,9 @@ def dashboard():
                          priority_filter=priority_filter,
                          issue_type_filter=issue_type_filter,
                          allowed_issue_types=ALLOWED_ISSUE_TYPES,
-                         ticket_priorities=TICKET_PRIORITIES)
+                         ticket_priorities=TICKET_PRIORITIES,
+                         is_image_file=is_image_file,
+                         email_configured=email_configured)
 
 
 @app.route('/reply_ticket/<int:ticket_id>', methods=['POST'])
@@ -957,7 +1011,7 @@ def reply_ticket(ticket_id):
         db.session.commit()
         
         # Send email to user with admin reply
-        email_sent = send_admin_reply_email(
+        email_sent, error_message = send_admin_reply_email(
             ticket.email,
             ticket.name,
             ticket.ticket_id,
@@ -968,7 +1022,11 @@ def reply_ticket(ticket_id):
         if email_sent:
             flash(f'Reply sent successfully to {ticket.email}. Ticket {ticket.ticket_id} marked as Resolved.', 'success')
         else:
-            flash(f'Reply saved and ticket marked as Resolved, but email notification failed.', 'warning')
+            # Provide detailed error message to admin
+            if error_message:
+                flash(f'Reply saved and ticket marked as Resolved, but email notification failed: {error_message}', 'warning')
+            else:
+                flash(f'Reply saved and ticket marked as Resolved, but email notification failed.', 'warning')
         
     except Exception as e:
         db.session.rollback()
