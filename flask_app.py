@@ -937,11 +937,24 @@ def bulk_resolve():
         flash('No tickets selected.', 'warning')
         return redirect(url_for('dashboard'))
     
+    # Validate ticket IDs are integers
+    valid_ticket_ids = []
+    for ticket_id in ticket_ids:
+        try:
+            valid_ticket_ids.append(int(ticket_id))
+        except (ValueError, TypeError):
+            # Skip invalid ticket IDs
+            continue
+    
+    if not valid_ticket_ids:
+        flash('No valid tickets selected.', 'error')
+        return redirect(url_for('dashboard'))
+    
     try:
         # Update all selected tickets
         count = 0
-        for ticket_id in ticket_ids:
-            ticket = db.session.get(Ticket, int(ticket_id))
+        for ticket_id in valid_ticket_ids:
+            ticket = db.session.get(Ticket, ticket_id)
             if ticket and ticket.status == 'Open':
                 ticket.status = 'Resolved'
                 ticket.updated_at = datetime.now(timezone.utc)
