@@ -275,68 +275,9 @@ def load_user(user_id):
     return db.session.get(User, int(user_id))
 
 
-# Before request hook to prevent redirect loops
-@app.before_request
-def check_auth_redirect_loop():
-    """
-    Before request hook to handle authentication redirects safely.
-    Prevents redirect loops by explicitly excluding public endpoints.
-    
-    Public endpoints that should NEVER redirect:
-    - home: / 
-    - login: /login
-    - register: /register
-    - verify_otp: /verify_otp
-    - logout: /logout
-    - static: /static/*
-    - health_check: /health
-    - db_verify: /db-verify
-    - support: /support
-    - faq: /faq
-    - about: /about
-    - track: /track
-    - search_ticket: /search_ticket
-    - submit: /submit
-    - subscribe_newsletter: /subscribe_newsletter
-    - dismiss_newsletter: /dismiss_newsletter
-    - subscribe_push: /subscribe_push
-    - uploaded_file: /uploads/<filename> (has its own auth check)
-    
-    For all other endpoints, the @login_required decorator handles authentication.
-    This hook simply ensures public endpoints remain accessible without redirects.
-    """
-    # List of public endpoints that don't require authentication
-    public_endpoints = [
-        'home',
-        'login',
-        'register',
-        'verify_otp',
-        'logout',
-        'static',
-        'health_check',
-        'db_verify',
-        'support',
-        'faq',
-        'about',
-        'track',
-        'search_ticket',
-        'submit',
-        'subscribe_newsletter',
-        'dismiss_newsletter',
-        'subscribe_push',
-        'uploaded_file',
-    ]
-    
-    # Get current endpoint
-    endpoint = request.endpoint
-    
-    # Allow all public endpoints without any redirect logic
-    # For protected routes, the @login_required decorator will handle authentication
-    if endpoint in public_endpoints or endpoint is None:
-        return None
-    
-    # No special handling needed - just ensure the request continues normally
-    return None
+# No before_request hook needed - Flask-Login handles authentication
+# Public routes are accessible to all, protected routes use @login_required decorator
+# This prevents redirect loops by keeping authentication logic simple and explicit
 
 
 # Create all database tables
@@ -379,11 +320,42 @@ def get_redirect_for_user(user):
         
     Returns:
         Redirect URL string
+        
+    Note: This function is kept for backwards compatibility but direct
+          redirects are preferred to prevent loops.
     """
     if user.is_admin:
         return url_for('dashboard')
     else:
         return url_for('home')
+
+
+def is_safe_url(target):
+    """
+    Check if a redirect URL is safe (prevents Open Redirect attacks).
+    
+    Args:
+        target: The URL to validate
+        
+    Returns:
+        True if the URL is safe to redirect to, False otherwise
+        
+    Security:
+        - Only allows relative URLs (same-origin)
+        - Blocks absolute URLs to external sites
+        - Prevents protocol-relative URLs
+    """
+    from urllib.parse import urlparse, urljoin
+    
+    # Get the host URL
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    
+    # URL is safe if:
+    # 1. It has the same scheme (http/https)
+    # 2. It has the same netloc (domain)
+    # 3. Or it's a relative URL (no netloc)
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 # ========================================
 
 def generate_ticket_id():
@@ -1184,9 +1156,12 @@ def register():
     User registration route with OTP verification (v4.0.0)
     Open registration - no whitelist required
     """
-    # Redirect if already logged in
+    # Redirect if already logged in (prevent redirect loop by going directly to home)
     if current_user.is_authenticated:
-        return redirect(get_redirect_for_user(current_user))
+        flash('You are already logged in.', 'info')
+        if current_user.is_admin:
+            return redirect(url_for('dashboard'))
+        return redirect(url_for('home'))
     
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
@@ -1290,9 +1265,12 @@ def login():
     """
     User login route
     """
-    # Redirect if already logged in
+    # Redirect if already logged in (prevent redirect loop by going directly to appropriate page)
     if current_user.is_authenticated:
-        return redirect(get_redirect_for_user(current_user))
+        flash('You are already logged in.', 'info')
+        if current_user.is_admin:
+            return redirect(url_for('dashboard'))
+        return redirect(url_for('home'))
     
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
@@ -1312,11 +1290,15 @@ def login():
             login_user(user, remember=remember)
             flash(f'Welcome back, {user.email}!', 'success')
             
-            # Redirect to next page or appropriate page based on user role
+            # Handle next parameter safely (Open Redirect protection)
             next_page = request.args.get('next')
-            if next_page:
+            if next_page and is_safe_url(next_page):
                 return redirect(next_page)
-            return redirect(get_redirect_for_user(user))
+            
+            # Redirect based on user role
+            if user.is_admin:
+                return redirect(url_for('dashboard'))
+            return redirect(url_for('home'))
         else:
             flash('Invalid email or password.', 'error')
             return redirect(url_for('login'))
