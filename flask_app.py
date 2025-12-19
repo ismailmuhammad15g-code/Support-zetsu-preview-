@@ -24,6 +24,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from PIL import Image
 
 # Configure logging
 logging.basicConfig(
@@ -94,6 +95,14 @@ if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
     except Exception as e:
         logger.warning(f"Failed to configure Gemini API: {e}")
+
+# Gemini AI generation configuration
+GEMINI_GENERATION_CONFIG = {
+    'temperature': 0.7,
+    'top_p': 0.9,
+    'top_k': 40,
+    'max_output_tokens': 500,
+}
 
 # Allowed issue types for validation
 ALLOWED_ISSUE_TYPES = {
@@ -672,19 +681,19 @@ Customer Message: {ticket_message}
 
 Please provide a helpful support response."""
         
+        # Initialize Gemini model (same model for both text and vision)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
         # Check if we have an image attachment for vision analysis
         has_image = attachment_filename and is_image_file(attachment_filename)
         
-        # Initialize Gemini model with vision support if image present
+        # Generate response with or without image
         if has_image:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            
             # Load image for vision analysis
             image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
             if os.path.exists(image_path):
                 try:
-                    # Upload image file to Gemini
-                    from PIL import Image
+                    # Load image file
                     img = Image.open(image_path)
                     
                     # Add instruction for image analysis
@@ -693,12 +702,7 @@ Please provide a helpful support response."""
                     # Generate response with image
                     response = model.generate_content(
                         [vision_prompt, img],
-                        generation_config={
-                            'temperature': 0.7,
-                            'top_p': 0.9,
-                            'top_k': 40,
-                            'max_output_tokens': 500,
-                        }
+                        generation_config=GEMINI_GENERATION_CONFIG
                     )
                     
                     logger.info(f"AI response generated with image analysis for {attachment_filename}")
@@ -707,38 +711,20 @@ Please provide a helpful support response."""
                     # Fall back to text-only if image processing fails
                     response = model.generate_content(
                         f"{system_prompt}\n\n{user_prompt}",
-                        generation_config={
-                            'temperature': 0.7,
-                            'top_p': 0.9,
-                            'top_k': 40,
-                            'max_output_tokens': 500,
-                        }
+                        generation_config=GEMINI_GENERATION_CONFIG
                     )
             else:
                 # Image file not found, use text only
                 logger.warning(f"Image file not found: {image_path}")
                 response = model.generate_content(
                     f"{system_prompt}\n\n{user_prompt}",
-                    generation_config={
-                        'temperature': 0.7,
-                        'top_p': 0.9,
-                        'top_k': 40,
-                        'max_output_tokens': 500,
-                    }
+                    generation_config=GEMINI_GENERATION_CONFIG
                 )
         else:
-            # No image - use text-only model
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            
-            # Generate response
+            # No image - use text-only
             response = model.generate_content(
                 f"{system_prompt}\n\n{user_prompt}",
-                generation_config={
-                    'temperature': 0.7,
-                    'top_p': 0.9,
-                    'top_k': 40,
-                    'max_output_tokens': 500,
-                }
+                generation_config=GEMINI_GENERATION_CONFIG
             )
         
         if response and response.text:
