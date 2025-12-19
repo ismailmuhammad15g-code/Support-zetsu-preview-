@@ -16,8 +16,8 @@ echo "Step 2: Installing dependencies..."
 pip install -r requirements.txt
 
 echo "Step 3: Cleaning cache files..."
-find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
-find . -name "*.pyc" -delete
+find . -type d -name "__pycache__" 2>/dev/null | while read dir; do rm -rf "$dir"; done
+find . -name "*.pyc" -delete 2>/dev/null
 
 echo "Step 4: Cleaning log files..."
 rm -f error.log *.log 2>/dev/null

@@ -771,12 +771,13 @@ Please provide a helpful support response."""
     except Exception as e:
         # Enhanced error handling with specific messages for different error types
         error_msg = str(e).lower()
-        if '404' in error_msg or 'not found' in error_msg:
-            logger.error(f"AI Model not found (404 error). Please check model name: {e}")
-        elif 'api key' in error_msg or 'authentication' in error_msg:
-            logger.error(f"AI API authentication failed. Check API key: {e}")
-        elif 'quota' in error_msg or 'limit' in error_msg:
-            logger.error(f"AI API quota exceeded or rate limited: {e}")
+        # Check for specific error patterns to provide helpful debugging information
+        if '404' in error_msg or 'not found' in error_msg or 'model' in error_msg:
+            logger.error(f"AI Model not found (404 error). Verify model name 'gemini-1.5-flash' is available: {e}")
+        elif 'api key' in error_msg or 'authentication' in error_msg or 'unauthorized' in error_msg:
+            logger.error(f"AI API authentication failed. Check GEMINI_API_KEY environment variable: {e}")
+        elif 'quota' in error_msg or 'limit' in error_msg or 'exceeded' in error_msg:
+            logger.error(f"AI API quota exceeded or rate limited. Try again later: {e}")
         else:
             logger.error(f"Error generating AI response: {e}")
         return None
