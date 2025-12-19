@@ -1945,3 +1945,47 @@ body {
         width: 100%;
     }
 }
+
+/* ========================================
+   SUCCESS MODAL STYLES (User-facing clean view)
+   ======================================== */
+
+.success-modal-card {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-depth-16);
+    padding: var(--spacing-xxl);
+    margin-bottom: var(--spacing-xxl);
+    text-align: center;
+    animation: slideInDown 0.4s ease-out;
+}
+
+.success-modal-icon {
+    margin-bottom: var(--spacing-lg);
+}
+
+.success-modal-content {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.success-modal-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    margin-top: var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+    .success-modal-card {
+        padding: var(--spacing-lg);
+    }
+    
+    .success-modal-actions {
+        flex-direction: column;
+    }
+    
+    .success-modal-actions .btn {
+        width: 100%;
+    }
+}
