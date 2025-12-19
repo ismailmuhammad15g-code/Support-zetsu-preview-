@@ -1,5 +1,10 @@
 # PythonAnywhere Deployment Checklist
 
+## ⚠️ SECURITY UPDATE: API Key Configuration Required
+
+**All hardcoded API keys have been removed!**  
+See **PYTHONANYWHERE_SETUP.md** for step-by-step API key configuration instructions.
+
 ## Pre-Deployment Checklist ✓
 
 - [x] Flask-WTF dependency is in requirements.txt
