@@ -18,8 +18,14 @@
             <div class="navbar-brand">
                 <h1>ZetsuServ</h1>
             </div>
+            <!-- Hamburger Menu Button (Mobile) -->
+            <button class="hamburger-menu" id="hamburgerBtn" aria-label="Toggle navigation">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
             <!-- Navigation Links -->
-            <ul class="navbar-nav">
+            <ul class="navbar-nav" id="navbarNav">
                 <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
                 <li><a href="{{ url_for('support') }}" class="nav-link active">Support</a></li>
                 <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
@@ -232,6 +238,14 @@
                     {% for category, message in messages %}
                         showToast({{ message|tojson }}, {{ category|tojson }});
                     {% endfor %}
+                    // Show the "team is busy" message after any success message
+                    {% for category, message in messages %}
+                        {% if category == 'success' %}
+                            setTimeout(function() {
+                                showToast("Our team is busy right now, so AI will reply to you. Thanks! 🙏🏻", 'info');
+                            }, 1500);
+                        {% endif %}
+                    {% endfor %}
                 });
             {% endif %}
         {% endwith %}
@@ -331,7 +345,24 @@
                 
                 // Form will submit naturally, loading state will show until page redirects
             });
+            
+            // Clear form after successful submission (if there's a success message)
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        {% if category == 'success' %}
+                            // Clear the form
+                            form.reset();
+                            // Hide upload indicators
+                            hideUploadProgress();
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
         });
     </script>
+
+    <!-- Hamburger Menu Script -->
+    <script src="{{ url_for('static', filename='hamburger-menu.js') }}"></script>
 </body>
 </html>

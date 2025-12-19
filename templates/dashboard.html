@@ -21,14 +21,21 @@
             <div class="navbar-brand">
                 <h1>ZetsuServ</h1>
             </div>
+            <!-- Hamburger Menu Button (Mobile) -->
+            <button class="hamburger-menu" id="hamburgerBtn" aria-label="Toggle navigation">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
             <!-- Navigation Links -->
-            <ul class="navbar-nav">
+            <ul class="navbar-nav" id="navbarNav">
                 <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
                 <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
                 <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
                 <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
                 <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
                 <li><a href="{{ url_for('dashboard') }}" class="nav-link active">Dashboard</a></li>
+                <li><a href="{{ url_for('draft_pulls') }}" class="nav-link">Draft Pulls</a></li>
                 <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
             </ul>
         </div>
@@ -102,8 +109,10 @@
                         <label for="status">Status:</label>
                         <select name="status" id="status" class="filter-select">
                             <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
-                            <option value="Open" {% if status_filter == 'Open' %}selected{% endif %}>Open</option>
-                            <option value="Resolved" {% if status_filter == 'Resolved' %}selected{% endif %}>Resolved</option>
+                            <option value="pending_review" {% if status_filter == 'pending_review' %}selected{% endif %}>Pending Review</option>
+                            <option value="sent" {% if status_filter == 'sent' %}selected{% endif %}>Sent</option>
+                            <option value="Open" {% if status_filter == 'Open' %}selected{% endif %}>Open (Legacy)</option>
+                            <option value="Resolved" {% if status_filter == 'Resolved' %}selected{% endif %}>Resolved (Legacy)</option>
                         </select>
                     </div>
                     
@@ -206,7 +215,11 @@
                                     </span>
                                 </td>
                                 <td>
-                                    {% if ticket.status == 'Open' %}
+                                    {% if ticket.status == 'pending_review' %}
+                                        <span class="badge badge-status-open">Pending Review</span>
+                                    {% elif ticket.status == 'sent' %}
+                                        <span class="badge badge-status-resolved">Sent</span>
+                                    {% elif ticket.status == 'Open' %}
                                         <span class="badge badge-status-open">Open</span>
                                     {% else %}
                                         <span class="badge badge-status-resolved">Resolved</span>
@@ -268,13 +281,13 @@
                                         </div>
                                         {% endif %}
                                         
-                                        {% if ticket.status == 'Open' %}
+                                        {% if ticket.status == 'pending_review' or ticket.status == 'Open' %}
                                         
                                         <!-- AI Suggestion Section (Admin Only) -->
-                                        {% if ticket.ai_suggestion %}
+                                        {% if ticket.ai_suggestion or ticket.ai_draft %}
                                         <div class="ticket-detail-section" style="background: #F3F2F1; border-left: 4px solid #0078D4; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
                                             <h4 style="color: #0078D4; margin-bottom: 12px;">🤖 AI Suggested Response:</h4>
-                                            <div class="ai-suggestion-display" id="ai-suggestion-{{ ticket.id }}" style="color: #323130; line-height: 1.6; white-space: pre-wrap;">{{ ticket.ai_suggestion }}</div>
+                                            <div class="ai-suggestion-display" id="ai-suggestion-{{ ticket.id }}" style="color: #323130; line-height: 1.6; white-space: pre-wrap;">{{ ticket.ai_draft or ticket.ai_suggestion }}</div>
                                             <button type="button" class="btn btn-secondary" onclick="useAISuggestion({{ ticket.id }})" style="margin-top: 12px;">
                                                 ✨ Use AI Suggestion
                                             </button>
@@ -331,7 +344,11 @@
                         <div class="ticket-card-header">
                             <div>
                                 <strong class="ticket-id">{{ ticket.ticket_id }}</strong>
-                                {% if ticket.status == 'Open' %}
+                                {% if ticket.status == 'pending_review' %}
+                                    <span class="badge badge-status-open">Pending Review</span>
+                                {% elif ticket.status == 'sent' %}
+                                    <span class="badge badge-status-resolved">Sent</span>
+                                {% elif ticket.status == 'Open' %}
                                     <span class="badge badge-status-open">Open</span>
                                 {% else %}
                                     <span class="badge badge-status-resolved">Resolved</span>
@@ -399,7 +416,7 @@
                             {% endif %}
                         </div>
                         
-                        {% if ticket.status == 'Open' %}
+                        {% if ticket.status == 'pending_review' or ticket.status == 'Open' %}
                         <div class="ticket-card-footer">
                             <button 
                                 class="btn btn-small btn-expand" 
@@ -411,10 +428,10 @@
                             <div id="mobile-reply-{{ ticket.id }}" class="mobile-reply-form" style="display: none;">
                                 
                                 <!-- AI Suggestion for Mobile -->
-                                {% if ticket.ai_suggestion %}
+                                {% if ticket.ai_suggestion or ticket.ai_draft %}
                                 <div style="background: #F3F2F1; border-left: 4px solid #0078D4; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
                                     <strong style="color: #0078D4;">🤖 AI Suggested Response:</strong>
-                                    <div id="ai-suggestion-mobile-{{ ticket.id }}" style="margin-top: 8px; font-size: 13px; line-height: 1.5;">{{ ticket.ai_suggestion }}</div>
+                                    <div id="ai-suggestion-mobile-{{ ticket.id }}" style="margin-top: 8px; font-size: 13px; line-height: 1.5;">{{ ticket.ai_draft or ticket.ai_suggestion }}</div>
                                     <button type="button" class="btn btn-secondary" onclick="useAISuggestionMobile({{ ticket.id }})" style="margin-top: 8px; width: 100%; font-size: 13px;">
                                         ✨ Use AI Suggestion
                                     </button>
@@ -708,5 +725,8 @@
             }
         }
     </script>
+
+    <!-- Hamburger Menu Script -->
+    <script src="{{ url_for('static', filename='hamburger-menu.js') }}"></script>
 </body>
 </html>

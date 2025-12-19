@@ -1649,3 +1649,139 @@ body {
         text-align: center;
     }
 }
+
+/* ========================================
+   HAMBURGER MENU - Microsoft Fluent Design
+   ======================================== */
+
+/* Hamburger button - hidden on desktop, visible on mobile */
+.hamburger-menu {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 32px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1001;
+    position: relative;
+}
+
+.hamburger-line {
+    width: 100%;
+    height: 3px;
+    background: var(--ms-blue);
+    border-radius: 2px;
+    transition: all var(--transition-normal);
+    transform-origin: center;
+}
+
+/* Hamburger animation when active */
+.hamburger-menu.active .hamburger-line:nth-child(1) {
+    transform: translateY(10.5px) rotate(45deg);
+}
+
+.hamburger-menu.active .hamburger-line:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+}
+
+.hamburger-menu.active .hamburger-line:nth-child(3) {
+    transform: translateY(-10.5px) rotate(-45deg);
+}
+
+/* Mobile Navigation Styles */
+@media (max-width: 768px) {
+    /* Show hamburger button on mobile */
+    .hamburger-menu {
+        display: flex;
+    }
+    
+    /* Hide navigation by default on mobile */
+    .navbar-nav {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 280px;
+        height: 100vh;
+        background: var(--bg-primary);
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        padding: 80px 20px 20px 20px;
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+        transition: right var(--transition-slow);
+        z-index: 1000;
+        overflow-y: auto;
+        gap: 0;
+    }
+    
+    /* Show navigation when active */
+    .navbar-nav.active {
+        right: 0;
+    }
+    
+    /* Navigation links in mobile menu */
+    .navbar-nav li {
+        width: 100%;
+        border-bottom: 1px solid var(--ms-gray-30);
+    }
+    
+    .navbar-nav .nav-link {
+        display: block;
+        width: 100%;
+        padding: 16px 20px;
+        text-align: left;
+        font-size: 16px;
+        color: var(--text-secondary);
+        border-radius: 0;
+    }
+    
+    .navbar-nav .nav-link:hover {
+        background: var(--ms-gray-20);
+        color: var(--ms-blue);
+    }
+    
+    .navbar-nav .nav-link.active {
+        background: var(--ms-blue);
+        color: var(--text-white);
+        font-weight: var(--font-weight-bold);
+    }
+    
+    /* Overlay backdrop when menu is open */
+    .navbar-nav.active::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: -1;
+        animation: fadeIn var(--transition-normal);
+    }
+    
+    /* Adjust navbar container on mobile */
+    .navbar .container {
+        justify-content: space-between;
+    }
+    
+    /* Ensure brand is visible */
+    .navbar-brand {
+        z-index: 1001;
+    }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .navbar-nav {
+        gap: 4px;
+    }
+    
+    .nav-link {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: 13px;
+    }
+}
