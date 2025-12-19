@@ -1632,7 +1632,7 @@ def draft_pulls():
                          is_image_file=is_image_file)
 
 
-@app.route('/console')
+@app.route('/admin/console')
 @login_required
 def console():
     """
