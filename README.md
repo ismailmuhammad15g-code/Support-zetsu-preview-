@@ -1,15 +1,40 @@
 # ZetsuServ Support Portal
 
-A professional, enterprise-grade Flask web application for comprehensive support ticket management, styled with Microsoft Fluent Design System.
+A professional, enterprise-grade Flask web application for comprehensive support ticket management with **Hybrid Human-AI Support System**, styled with Microsoft Fluent Design System.
 
-![Version](https://img.shields.io/badge/version-3.3.0-blue)
+![Version](https://img.shields.io/badge/version-3.4.0-blue)
 ![Python](https://img.shields.io/badge/python-3.7+-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0.0-green)
+![AI](https://img.shields.io/badge/AI-Gemini%20Pro-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🎯 Features
 
-### 🆕 Latest Updates (v3.3.0)
+### 🆕 Latest Updates (v3.4.0) - Hybrid Human-AI Support System 🤖
+
+#### 🧠 AI-Powered Features
+- **🤖 Gemini AI Integration** - Powered by Google's Gemini Pro for intelligent responses
+- **🎯 Hybrid Support Logic** - AI automatically handles tickets when admin is unavailable
+- **💡 AI Response Suggestions** - Get AI-drafted responses for every ticket
+- **📊 Sentiment Analysis** - Auto-detects urgent/angry keywords and escalates priority
+- **✨ Smart Auto-Response** - AI replies to users when admin is offline
+- **🔄 Availability Toggle** - Modern switch to control when AI takes over
+
+#### 🎛️ Admin Dashboard Enhancements
+- **🟢 Availability Switch** - Toggle your availability status with no-redirect design
+- **📝 AI Suggested Responses** - See AI-generated drafts for every open ticket
+- **🚀 One-Click AI Use** - Copy AI suggestions into reply field instantly
+- **🎨 Modern Toggle UI** - Fluent Design toggle with smooth animations
+- **📈 Smart Priority Escalation** - Keywords like "urgent" auto-promote to High Priority
+
+#### 🛡️ Safety & Reliability
+- **✅ No Redirect Loops** - AJAX-based toggle prevents ERR_TOO_MANY_REDIRECTS
+- **🔐 Secure API Integration** - Environment-based API key configuration
+- **📊 Comprehensive Logging** - Track AI responses and admin availability changes
+- **🎯 FAQ Context Integration** - AI uses your FAQ database for accurate answers
+- **⚠️ Sentiment Detection** - Detects: angry, urgent, critical, emergency, ASAP, and more
+
+### Previous Updates (v3.3.0)
 
 - **📤 File Upload Progress** - Microsoft-style upload progress with real-time visual feedback
 - **⏳ Submit Button Loading** - Loading spinner when submitting forms
@@ -35,6 +60,8 @@ A professional, enterprise-grade Flask web application for comprehensive support
 - **File Upload with Progress** - Real-time upload progress indicator for attachments
 - **Multiple Issue Types** - Technical Support, Billing, Bug Reports, Feature Requests, etc.
 - **Priority Levels** - Mark tickets as Low, Medium, High, or Urgent
+- **🤖 AI Auto-Response** - Get instant AI-powered responses when admin is unavailable
+- **📊 Smart Escalation** - Urgent keywords automatically escalate your ticket
 - **File Attachments** - Upload documents, images, or text files (up to 5MB)
 - **Client-side Validation** - Instant feedback on file size and type before upload
 - **Ticket Tracking** - Search and view your tickets by ID or email
@@ -43,6 +70,8 @@ A professional, enterprise-grade Flask web application for comprehensive support
 
 #### For Admins (Protected Access)
 - **Secure Dashboard** - Login-protected admin panel
+- **🟢 Availability Toggle** - Control when AI handles tickets vs. human response
+- **💡 AI Draft Suggestions** - See AI-generated response drafts for every ticket
 - **View All Tickets** - See all submitted tickets in one place
 - **Advanced Filtering** - Filter tickets by status, priority, and issue type
 - **Real-time Statistics** - View counts for Open, Resolved, Urgent, and High Priority tickets
@@ -637,8 +666,14 @@ Before going live, ensure:
 **Required:**
 - `SECRET_KEY` - Flask secret key for sessions (generate with `secrets.token_hex(32)`)
 
+**AI Integration (New in v3.4.0):**
+- `GEMINI_API_KEY` - Google Gemini API key for AI-powered responses
+  - Default: `AIzaSyBYpMnBd1UMuPDvskn9-ss3LpWkUBdWmR0` (included for demo)
+  - Get your own key at: https://makersuite.google.com/app/apikey
+  - Set via environment variable for production use
+
 **Optional (for webhook automation):**
-- `N8N_WEBHOOK_URL` - n8n or other webhook URL for automated ticket processing (New in v3.2.0)
+- `N8N_WEBHOOK_URL` - n8n or other webhook URL for automated ticket processing (v3.2.0)
 
 **Optional (for email notifications):**
 - `SMTP_SERVER` - SMTP server address (default: smtp.gmail.com)
@@ -648,6 +683,29 @@ Before going live, ensure:
 
 **Database:**
 - `DATABASE_URL` - Database connection string (default: sqlite:///support_tickets.db)
+
+### 🤖 AI Setup (v3.4.0)
+
+The Hybrid AI Support System uses Google's Gemini Pro model for intelligent responses.
+
+**Quick Start:**
+- The application includes a demo API key for testing
+- For production use, get your own free API key from Google AI Studio
+
+**Getting Your Own API Key:**
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy your key and set it as an environment variable:
+   ```bash
+   export GEMINI_API_KEY=your-key-here
+   ```
+
+**How It Works:**
+- When admin toggle is set to "Unavailable", AI auto-responds to new tickets
+- AI always generates draft suggestions for admins, regardless of availability
+- Sentiment analysis automatically escalates urgent tickets
+- AI uses your FAQ database as context for accurate, relevant responses
 
 ## 🔐 Admin Setup
 
@@ -947,6 +1005,88 @@ pip3 install --user -r requirements.txt
 # Reload web app
 ```
 
+### AI Integration Issues (New in v3.4.0)
+
+**Issue:** AI not responding when admin is unavailable
+
+**Solution:**
+1. **Check API Key Configuration:**
+   - Verify `GEMINI_API_KEY` is set (default demo key is included)
+   - For production, get your own key from Google AI Studio
+   - Set via environment variable: `export GEMINI_API_KEY=your-key`
+
+2. **Check Admin Availability Status:**
+   - Login to admin dashboard
+   - Look for the availability toggle in the header
+   - Ensure it's set to "Unavailable" to trigger AI responses
+   - Try toggling it and check the toast notification
+
+3. **Check Logs:**
+   - Look for AI-related log messages in console
+   - Errors will be logged with details
+   - Common issues: API rate limits, network errors
+
+**Issue:** Availability toggle not working / redirect loops
+
+**Solution:**
+- This should NOT happen as we use AJAX/JSON responses
+- Check browser console for JavaScript errors (F12)
+- Clear browser cache (Ctrl+Shift+R or Cmd+Shift+R)
+- Verify CSRF token is present in forms
+- Check network tab for failed requests
+
+**Issue:** AI suggestions not appearing
+
+**Solution:**
+1. Verify ticket was created after v3.4.0 implementation
+2. Check ticket has `ai_suggestion` column in database
+3. If migrating from old database:
+   ```bash
+   # Delete old database (backup first!)
+   cp support_tickets.db support_tickets.db.backup
+   rm support_tickets.db
+   # Restart app - new schema will be created
+   ```
+
+**Issue:** Sentiment analysis not escalating priority
+
+**Solution:**
+- Sentiment analysis runs during ticket submission
+- Keywords checked: urgent, angry, critical, emergency, ASAP, immediately, etc.
+- Verify message contains these keywords
+- Priority auto-escalates to "High" only during initial submission
+- Existing tickets are not retroactively updated
+
+**Issue:** Gemini API errors or empty responses
+
+**Solution:**
+1. **Rate Limiting:**
+   - Free tier has limits (60 requests/minute)
+   - Wait a moment and try again
+   - For production, upgrade to paid tier
+
+2. **Network Issues:**
+   - Check internet connectivity
+   - Verify firewall allows HTTPS to googleapis.com
+   - PythonAnywhere free tier may have restrictions
+
+3. **Invalid API Key:**
+   - Verify key is correct and active
+   - Check for extra spaces or quotes
+   - Get new key if needed from Google AI Studio
+
+4. **Model Unavailable:**
+   - gemini-pro model should be available
+   - If not, check Google AI Studio status
+   - Try again later if service is down
+
+**Best Practices:**
+- Test AI features in development first
+- Monitor API usage to stay within limits
+- Set up error logging for production
+- Consider caching AI responses
+- Have human fallback for critical issues
+
 ## 📦 Dependencies
 
 ### Core
@@ -971,10 +1111,126 @@ pip3 install --user -r requirements.txt
 - **python-dotenv** (1.0.0) - Environment variables
 - **Pillow** (10.1.0) - Image processing
 - **gunicorn** (21.2.0) - WSGI server
+- **google-generativeai** (0.3.2) - Google Gemini AI SDK (New in v3.4.0)
 
 ### Development (Optional)
 - **pytest** (7.4.3) - Testing framework
 - **pytest-flask** (1.3.0) - Flask testing utilities
+
+## 🚀 Quick Start Guide: AI Features (v3.4.0)
+
+### For Admins
+
+**Setting Your Availability:**
+1. Login to admin dashboard
+2. Look for the toggle switch in the top-right header
+3. Toggle to "Unavailable" when you're offline/busy
+4. AI will automatically handle new tickets
+5. Toggle back to "Available" when you return
+
+**Using AI Suggestions:**
+1. Open any ticket in the dashboard
+2. Look for the "🤖 AI Suggested Response" section
+3. Review the AI-generated draft
+4. Click "✨ Use AI Suggestion" to load it
+5. Edit as needed and send
+
+**Understanding AI Indicators:**
+- **Blue box with robot icon** = AI suggestion available
+- **Green box with checkmark** = AI already auto-responded
+- **"[AI Assistant Response]" prefix** = Response was AI-generated
+
+### For Users
+
+**Getting Instant Help:**
+- Submit a ticket when admin is unavailable
+- AI responds automatically with helpful information
+- Response is based on FAQ knowledge base
+- Receive email with AI response (if configured)
+
+**Urgent Issues:**
+- Use keywords: urgent, critical, emergency, ASAP
+- Ticket is automatically escalated to High Priority
+- Admin is notified regardless of availability status
+
+### How It Works
+
+**Hybrid Logic:**
+```
+New Ticket Submitted
+    ↓
+Check Admin Availability
+    ↓
+├─ Admin Available → Notification Only
+│                    (AI suggestion generated for admin)
+│
+└─ Admin Unavailable → AI Auto-Response
+                        (Ticket marked resolved with AI reply)
+```
+
+**Sentiment Analysis:**
+```
+Ticket Message
+    ↓
+Scan for Keywords
+    ↓
+├─ Urgent Keywords Found → Escalate to High Priority
+│                           Notify admin immediately
+│
+└─ Normal Message → Regular Priority
+                     Follow availability logic
+```
+
+### Configuration
+
+**Minimal Setup (Demo):**
+```bash
+# Just run the app - demo API key is included
+python3 flask_app.py
+```
+
+**Production Setup:**
+```bash
+# Get your own API key from Google AI Studio
+export GEMINI_API_KEY=your-api-key-here
+
+# Optional: Configure email for notifications
+export SENDER_EMAIL=your-email@gmail.com
+export EMAIL_PASSWORD=your-app-password
+
+# Run the app
+python3 flask_app.py
+```
+
+### Testing AI Features
+
+**Test Availability Toggle:**
+1. Login as admin
+2. Toggle availability switch
+3. Check toast notification appears
+4. Verify no redirect/refresh occurs
+5. Status should persist across page loads
+
+**Test AI Auto-Response:**
+1. Set admin to "Unavailable"
+2. Submit a test ticket (from incognito/different browser)
+3. Check ticket in dashboard
+4. Should show green "AI Already Responded" indicator
+5. Check email for AI response (if configured)
+
+**Test AI Suggestions:**
+1. Set admin to "Available"
+2. Submit a test ticket
+3. Login to dashboard
+4. Open ticket details
+5. Should see blue "AI Suggested Response" box
+6. Click "Use AI Suggestion" to test
+
+**Test Sentiment Analysis:**
+1. Submit ticket with "URGENT! Critical issue!"
+2. Check dashboard
+3. Ticket should show "High" priority badge
+4. Works regardless of admin availability
 
 ## 🤝 Contributing
 
@@ -1030,7 +1286,116 @@ For issues, questions, or contributions:
 
 ## 🔄 Changelog
 
-### Version 3.3.0 (Latest - December 2024) 🎉
+### Version 3.4.0 (Latest - December 2024) 🤖🎉
+
+#### 🧠 AI-Powered Features
+- ✨ **NEW:** **Gemini AI Integration** - Powered by Google's Gemini Pro model
+  - Intelligent, context-aware responses to support tickets
+  - Trained on FAQ knowledge base for accurate answers
+  - Professional, empathetic tone matching your brand
+  - Configurable via `GEMINI_API_KEY` environment variable
+  
+- ✨ **NEW:** **Hybrid Human-AI Support System** - Smart ticket handling
+  - AI auto-responds when admin is unavailable
+  - Admin notifications when available
+  - Seamless handoff between AI and human support
+  - Configurable availability status per admin
+  
+- ✨ **NEW:** **AI Draft Suggestions** - Intelligent assistance for admins
+  - AI generates draft responses for every ticket
+  - Always available regardless of admin status
+  - One-click copy to reply field
+  - Review and edit before sending
+  
+- ✨ **NEW:** **Sentiment Analysis** - Smart priority escalation
+  - Detects urgent/angry keywords in messages
+  - Auto-escalates to "High Priority"
+  - Keywords: urgent, angry, critical, emergency, ASAP, etc.
+  - Ensures urgent issues get immediate attention
+
+#### 🎛️ Admin Dashboard Enhancements
+- ✨ **NEW:** **Availability Toggle Switch** - Control AI behavior
+  - Modern Fluent Design toggle in dashboard header
+  - AJAX-based (no redirects, no loops)
+  - Visual status: "Available" / "Unavailable"
+  - Smooth animations and transitions
+  - Real-time status updates
+  
+- ✨ **NEW:** **AI Response Indicators** - Track AI activity
+  - Visual badges for AI-responded tickets
+  - See which tickets got AI assistance
+  - Distinguish human vs AI replies
+  - Audit trail for support quality
+
+#### 🗄️ Database Updates
+- 📊 **NEW:** `is_available` column in User model
+  - Tracks admin availability status
+  - Default: True (available)
+  - Persists across sessions
+  
+- 📊 **NEW:** `ai_responded` column in Ticket model
+  - Tracks if AI auto-responded
+  - Default: False
+  - Used for reporting and analytics
+  
+- 📊 **NEW:** `ai_suggestion` column in Ticket model
+  - Stores AI-generated draft responses
+  - Always populated for admin reference
+  - Cached for performance
+
+#### 🔒 Security & Safety
+- 🔐 **SECURITY:** No redirect loops in availability toggle
+  - JSON-only responses from toggle endpoint
+  - AJAX/Fetch API implementation
+  - CSRF protection on all AJAX requests
+  - Proper error handling and rollback
+  
+- 🔐 **SECURITY:** API key protection
+  - Environment variable configuration
+  - No hardcoded secrets in code
+  - Fallback to demo key for testing
+  - Production guidance in documentation
+
+#### 📦 Dependencies
+- ➕ Added `google-generativeai==0.3.2` - Google Gemini AI SDK
+- ➕ Updated requirements.txt with AI dependencies
+
+#### 🎨 UI/UX Improvements
+- 🎨 Modern toggle switch with Fluent Design
+- 🎨 AI suggestion cards with blue accent
+- 🎨 Status indicators for AI responses
+- 🎨 Responsive layout for mobile toggle
+- 🎨 Smooth hover effects and transitions
+- 🎨 Professional loading states
+
+#### 📝 Documentation
+- 📝 Comprehensive README update with AI features
+- 📝 API key setup instructions
+- 📝 Hybrid logic explanation
+- 📝 Sentiment analysis keyword list
+- 📝 Troubleshooting section for AI
+- 📝 Best practices for availability toggle
+
+#### 🛠️ Technical Improvements
+- ⚡ FAQ context integration for AI
+  - AI reads FAQ database dynamically
+  - Provides contextually accurate answers
+  - Auto-updates when FAQs change
+  
+- ⚡ Efficient AI suggestion caching
+  - Generated once, stored in database
+  - No repeated API calls
+  - Fast dashboard loading
+  
+- ⚡ Comprehensive logging
+  - All AI interactions logged
+  - Availability changes tracked
+  - Error handling and recovery
+  - Debug-friendly output
+
+---
+
+### Version 3.3.0 (December 2024) 🎉
 
 #### 🚀 New Features
 - ✨ **NEW:** **File Upload Progress Indicator** - Microsoft-style upload experience

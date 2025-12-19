@@ -13,11 +13,12 @@ import smtplib
 import secrets
 import requests
 import logging
+import google.generativeai as genai
 from datetime import datetime, timezone
 from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import CSRFProtect
@@ -82,6 +83,18 @@ EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD', '')
 # n8n Webhook configuration for automation
 N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', '')
 
+# Gemini AI Configuration
+# IMPORTANT: Default API key is for DEMO/TESTING ONLY
+# For production, set your own API key via environment variable:
+# export GEMINI_API_KEY=your-api-key-here
+# Get a free API key at: https://makersuite.google.com/app/apikey
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyBYpMnBd1UMuPDvskn9-ss3LpWkUBdWmR0')
+if GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        logger.warning(f"Failed to configure Gemini API: {e}")
+
 # Allowed issue types for validation
 ALLOWED_ISSUE_TYPES = {
     "Technical Support",
@@ -113,6 +126,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(254), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+    is_available = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     
     def __repr__(self):
@@ -141,6 +155,8 @@ class Ticket(db.Model):
     status = db.Column(db.String(20), nullable=False, default='Open')
     attachment_filename = db.Column(db.String(255), nullable=True)
     admin_reply = db.Column(db.Text, nullable=True)
+    ai_responded = db.Column(db.Boolean, nullable=False, default=False)
+    ai_suggestion = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
@@ -160,6 +176,8 @@ class Ticket(db.Model):
             'status': self.status,
             'attachment_filename': self.attachment_filename,
             'admin_reply': self.admin_reply,
+            'ai_responded': self.ai_responded,
+            'ai_suggestion': self.ai_suggestion,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -566,6 +584,133 @@ def send_to_webhook(ticket_data):
         print(f"Unexpected error in webhook send: {e}")
         return False
 
+
+def get_faq_context():
+    """
+    Retrieve FAQ data to build context for AI responses
+    Returns formatted FAQ context string
+    """
+    try:
+        faqs = FAQ.query.all()
+        if not faqs:
+            return "No FAQ data available."
+        
+        faq_context = "Here are the frequently asked questions and answers for reference:\n\n"
+        for faq in faqs:
+            faq_context += f"Q: {faq.question}\nA: {faq.answer}\n\n"
+        
+        return faq_context
+    except Exception as e:
+        logger.error(f"Error retrieving FAQ context: {e}")
+        return "FAQ data unavailable."
+
+
+def detect_sentiment(message):
+    """
+    Detect if message contains urgent/angry keywords
+    Returns tuple (is_urgent: bool, detected_keywords: list)
+    """
+    urgent_keywords = [
+        'angry', 'urgent', 'critical', 'emergency', 'asap', 'immediately',
+        'frustrated', 'furious', 'unacceptable', 'terrible', 'horrible',
+        'worst', 'disappointed', 'outraged', 'serious', 'severe'
+    ]
+    
+    message_lower = message.lower()
+    detected = [keyword for keyword in urgent_keywords if keyword in message_lower]
+    
+    return len(detected) > 0, detected
+
+
+def generate_ai_response(ticket_message, issue_type, user_name):
+    """
+    Generate AI response using Gemini API
+    
+    Args:
+        ticket_message: User's support ticket message
+        issue_type: Type of issue submitted
+        user_name: Name of the user
+    
+    Returns:
+        AI-generated response string or None if failed
+    """
+    if not GEMINI_API_KEY:
+        logger.warning("Gemini API key not configured")
+        return None
+    
+    try:
+        # Get FAQ context
+        faq_context = get_faq_context()
+        
+        # Build system prompt
+        system_prompt = f"""You are a professional customer support AI assistant for ZetsuServ Support Portal.
+
+Your role:
+- Provide helpful, empathetic, and professional responses to customer inquiries
+- Use the FAQ knowledge base to answer common questions accurately
+- Keep responses concise but comprehensive (2-4 paragraphs)
+- Be friendly and reassuring
+- If you don't know something, acknowledge it and suggest contacting human support
+
+FAQ Knowledge Base:
+{faq_context}
+
+Guidelines:
+- Address the customer by name
+- Acknowledge their issue with empathy
+- Provide clear, actionable solutions when possible
+- End with an offer for further assistance
+- Use professional but friendly tone
+"""
+        
+        # Build user prompt
+        user_prompt = f"""Customer Name: {user_name}
+Issue Type: {issue_type}
+Customer Message: {ticket_message}
+
+Please provide a helpful support response."""
+        
+        # Initialize Gemini model
+        model = genai.GenerativeModel('gemini-pro')
+        
+        # Generate response
+        response = model.generate_content(
+            f"{system_prompt}\n\n{user_prompt}",
+            generation_config={
+                'temperature': 0.7,
+                'top_p': 0.9,
+                'top_k': 40,
+                'max_output_tokens': 500,
+            }
+        )
+        
+        if response and response.text:
+            return response.text.strip()
+        else:
+            logger.warning("Gemini API returned empty response")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error generating AI response: {e}")
+        return None
+
+
+def generate_ai_suggestion(ticket_message, issue_type, user_name):
+    """
+    Generate AI suggestion for admin (non-auto-sent)
+    This is always generated for admin to see as a draft
+    
+    Args:
+        ticket_message: User's support ticket message
+        issue_type: Type of issue submitted
+        user_name: Name of the user
+    
+    Returns:
+        AI-generated suggestion string or None if failed
+    """
+    # Use the same function but with different context
+    return generate_ai_response(ticket_message, issue_type, user_name)
+
 # ========================================
 # ROUTES
 # ========================================
@@ -736,6 +881,12 @@ def submit():
     if priority not in TICKET_PRIORITIES:
         priority = 'Medium'  # Default to Medium if invalid
     
+    # Check sentiment for urgent/angry keywords
+    is_urgent_sentiment, detected_keywords = detect_sentiment(message)
+    if is_urgent_sentiment:
+        priority = 'High'  # Auto-escalate priority
+        logger.info(f"Urgent sentiment detected. Keywords: {detected_keywords}. Priority escalated to High.")
+    
     try:
         # Generate ticket ID
         ticket_id = generate_ticket_id()
@@ -770,7 +921,60 @@ def submit():
         logger.info(f"Attachment: {attachment_filename}")
         logger.info("=" * 50)
         
-        # Send email notifications
+        # === HYBRID AI LOGIC ===
+        # Check admin availability and handle AI response
+        admin_available = True  # Default to available
+        try:
+            # Get the first admin user (should be only one)
+            admin_user = User.query.filter_by(is_admin=True).first()
+            if admin_user:
+                admin_available = admin_user.is_available
+                logger.info(f"Admin availability status: {admin_available}")
+        except Exception as e:
+            logger.error(f"Error checking admin availability: {e}")
+        
+        # Generate AI suggestion for admin (always done, regardless of availability)
+        try:
+            ai_suggestion = generate_ai_suggestion(message, issue_type, name)
+            if ai_suggestion:
+                new_ticket.ai_suggestion = ai_suggestion
+                db.session.commit()
+                logger.info(f"AI suggestion generated for ticket {ticket_id}")
+        except Exception as e:
+            logger.error(f"Error generating AI suggestion: {e}")
+        
+        # Decide whether to auto-respond with AI
+        # If urgent sentiment OR admin unavailable -> AI responds automatically
+        should_ai_respond = (not admin_available) or is_urgent_sentiment
+        
+        if should_ai_respond and not admin_available:
+            # Admin is unavailable - trigger AI auto-response
+            logger.info(f"Admin unavailable. Triggering AI auto-response for ticket {ticket_id}")
+            try:
+                ai_response = generate_ai_response(message, issue_type, name)
+                if ai_response:
+                    # Save AI response as admin reply
+                    new_ticket.admin_reply = f"[AI Assistant Response]\n\n{ai_response}"
+                    new_ticket.ai_responded = True
+                    new_ticket.status = 'Resolved'  # Mark as resolved by AI
+                    new_ticket.updated_at = datetime.now(timezone.utc)
+                    db.session.commit()
+                    
+                    # Send AI response to user via email
+                    try:
+                        send_admin_reply_email(email, name, ticket_id, message, ai_response)
+                        logger.info(f"AI response sent via email for ticket {ticket_id}")
+                    except Exception as email_error:
+                        logger.error(f"Error sending AI response email: {email_error}")
+                    
+                    logger.info(f"AI auto-response saved for ticket {ticket_id}")
+            except Exception as ai_error:
+                logger.error(f"Error generating AI auto-response: {ai_error}")
+        else:
+            # Admin is available - send notification only (no AI auto-response)
+            logger.info(f"Admin available. Sending notification only for ticket {ticket_id}")
+        
+        # Send email notifications (confirmation to user, notification to admin)
         email_sent = send_email(email, name, message, issue_type, ticket_id, priority)
         
         # Send to n8n webhook (non-blocking, won't crash app on failure)
@@ -975,6 +1179,9 @@ def dashboard():
     # Check email configuration status
     email_configured = bool(SENDER_EMAIL and EMAIL_PASSWORD)
     
+    # Get admin availability status
+    admin_available = current_user.is_available if current_user.is_authenticated else True
+    
     return render_template('dashboard.html', 
                          tickets=tickets,
                          open_count=open_count,
@@ -988,7 +1195,38 @@ def dashboard():
                          allowed_issue_types=ALLOWED_ISSUE_TYPES,
                          ticket_priorities=TICKET_PRIORITIES,
                          is_image_file=is_image_file,
-                         email_configured=email_configured)
+                         email_configured=email_configured,
+                         admin_available=admin_available)
+
+
+@app.route('/admin/toggle-status', methods=['POST'])
+@login_required
+def toggle_admin_status():
+    """
+    Toggle admin availability status via AJAX
+    Returns JSON response (NO REDIRECT to avoid loops)
+    Admin only route
+    """
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+    
+    try:
+        # Toggle the availability status
+        current_user.is_available = not current_user.is_available
+        db.session.commit()
+        
+        logger.info(f"Admin availability toggled to: {current_user.is_available}")
+        
+        return jsonify({
+            'success': True,
+            'is_available': current_user.is_available,
+            'message': f"Status updated to {'Available' if current_user.is_available else 'Unavailable'}"
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error toggling admin status: {e}")
+        return jsonify({'success': False, 'error': 'Failed to update status'}), 500
 
 
 @app.route('/reply_ticket/<int:ticket_id>', methods=['POST'])
