@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZetsuServ Dashboard - AI Features Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #FAF9F8;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #0078D4;
+            font-size: 28px;
+        }
+        
+        .toggle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .toggle-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #323130;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #0078D4;
+            border-radius: 34px;
+            transition: 0.3s;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 27px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        
+        .toggle-hint {
+            font-size: 12px;
+            color: #605E5C;
+        }
+        
+        .ticket-card {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #E1DFDD;
+        }
+        
+        .ticket-id {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0078D4;
+        }
+        
+        .badge {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-high {
+            background: #FDE7E9;
+            color: #A80000;
+        }
+        
+        .ai-suggestion {
+            background: #F3F2F1;
+            border-left: 4px solid #0078D4;
+            padding: 16px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        
+        .ai-suggestion h4 {
+            color: #0078D4;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .ai-suggestion-text {
+            color: #323130;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary {
+            background: #605E5C;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #323130;
+        }
+        
+        .ai-responded {
+            background: #E3F2FD;
+            border-left: 4px solid #107C10;
+            padding: 16px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        
+        .ai-responded strong {
+            color: #107C10;
+        }
+        
+        .message-box {
+            background: #FAF9F8;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+        
+        .message-label {
+            font-weight: 600;
+            color: #323130;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>🤖 ZetsuServ AI Dashboard</h1>
+            <p style="color: #605E5C; margin-top: 8px;">Hybrid Human-AI Support System v3.4.0</p>
+        </div>
+        
+        <div class="toggle-container">
+            <div class="toggle-label">
+                <span class="toggle-text">Available</span>
+                <div class="toggle-switch">
+                    <span class="toggle-slider"></span>
+                </div>
+            </div>
+            <p class="toggle-hint">Toggle to let AI handle tickets when unavailable</p>
+        </div>
+    </div>
+    
+    <div class="ticket-card">
+        <div class="ticket-header">
+            <span class="ticket-id">ZS-20241219-A1B2C3</span>
+            <span class="badge badge-high">High Priority</span>
+        </div>
+        
+        <div class="message-box">
+            <div class="message-label">Customer Message:</div>
+            <p style="color: #605E5C;">URGENT! My account is locked and I need immediate help. This is critical for my business!</p>
+        </div>
+        
+        <div class="ai-suggestion">
+            <h4>🤖 AI Suggested Response:</h4>
+            <div class="ai-suggestion-text">
+                Dear Customer,<br><br>
+                
+                I understand the urgency of your situation and apologize for the inconvenience with your locked account. I'm here to help you resolve this immediately.<br><br>
+                
+                Based on our security protocols, accounts can be locked for several reasons including multiple failed login attempts or suspicious activity detection. Here's what you can do right now:<br><br>
+                
+                1. Click the "Forgot Password" link on the login page to reset your password<br>
+                2. Check your email for the reset link (including spam folder)<br>
+                3. If you don't receive the email within 5 minutes, please reply and I'll escalate this to our technical team immediately<br><br>
+                
+                For immediate assistance, our team is available 24/7. If this issue persists, please don't hesitate to reach out again.<br><br>
+                
+                Best regards,<br>
+                ZetsuServ Support Team
+            </div>
+            <button class="btn btn-secondary">✨ Use AI Suggestion</button>
+        </div>
+    </div>
+    
+    <div class="ticket-card">
+        <div class="ticket-header">
+            <span class="ticket-id">ZS-20241219-X9Y8Z7</span>
+            <span class="badge badge-high">High Priority</span>
+        </div>
+        
+        <div class="message-box">
+            <div class="message-label">Customer Message:</div>
+            <p style="color: #605E5C;">How do I reset my password? I forgot it.</p>
+        </div>
+        
+        <div class="ai-responded">
+            <p><strong>✓ AI Already Responded:</strong> This ticket was auto-resolved by the AI assistant when you were unavailable.</p>
+        </div>
+        
+        <div class="message-box">
+            <div class="message-label">AI Response Sent:</div>
+            <p style="color: #605E5C; font-style: italic;">[AI Assistant Response]<br><br>Hello! I'd be happy to help you reset your password. Simply click on the "Forgot Password" link on our login page...</p>
+        </div>
+    </div>
+    
+    <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <h2 style="color: #0078D4; margin-bottom: 16px;">✨ Key Features</h2>
+        <ul style="color: #323130; line-height: 2;">
+            <li>🤖 <strong>AI Auto-Response:</strong> Gemini Pro AI handles tickets when you're unavailable</li>
+            <li>💡 <strong>Smart Suggestions:</strong> AI drafts responses for every ticket</li>
+            <li>📊 <strong>Sentiment Analysis:</strong> Auto-escalates urgent tickets to High Priority</li>
+            <li>🔄 <strong>No Redirects:</strong> AJAX-based toggle prevents loops</li>
+            <li>🔒 <strong>Secure:</strong> CSRF protected, 0 vulnerabilities detected</li>
+            <li>📱 <strong>Responsive:</strong> Works perfectly on mobile and desktop</li>
+        </ul>
+    </div>
+</body>
+</html>
