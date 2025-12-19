@@ -772,7 +772,7 @@ Please provide a helpful support response."""
         # Enhanced error handling with specific messages for different error types
         error_msg = str(e).lower()
         # Check for specific error patterns to provide helpful debugging information
-        if '404' in error_msg or 'not found' in error_msg or 'model' in error_msg:
+        if '404' in error_msg or ('not found' in error_msg and 'model' in error_msg) or 'model not found' in error_msg:
             logger.error(f"AI Model not found (404 error). Verify model name 'gemini-1.5-flash' is available: {e}")
         elif 'api key' in error_msg or 'authentication' in error_msg or 'unauthorized' in error_msg:
             logger.error(f"AI API authentication failed. Check GEMINI_API_KEY environment variable: {e}")
