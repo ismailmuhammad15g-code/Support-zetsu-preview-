@@ -24,7 +24,14 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from PIL import Image
+
+# Try to import PIL for image processing (optional dependency for vision features)
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    logger_warning_shown = False  # Will show warning when needed
 
 # Configure logging
 logging.basicConfig(
@@ -640,6 +647,7 @@ def generate_ai_response(ticket_message, issue_type, user_name, attachment_filen
         issue_type: Type of issue submitted
         user_name: Name of the user
         attachment_filename: Optional filename of attached image for vision analysis
+                           (must be already sanitized with secure_filename)
     
     Returns:
         AI-generated response string or None if failed
@@ -684,48 +692,72 @@ Please provide a helpful support response."""
         # Initialize Gemini model (same model for both text and vision)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
+        # Helper function to generate text-only response
+        def generate_text_response():
+            return model.generate_content(
+                f"{system_prompt}\n\n{user_prompt}",
+                generation_config=GEMINI_GENERATION_CONFIG
+            )
+        
         # Check if we have an image attachment for vision analysis
         has_image = attachment_filename and is_image_file(attachment_filename)
         
         # Generate response with or without image
-        if has_image:
-            # Load image for vision analysis
-            image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
-            if os.path.exists(image_path):
-                try:
-                    # Load image file
-                    img = Image.open(image_path)
-                    
-                    # Add instruction for image analysis
-                    vision_prompt = f"{system_prompt}\n\n{user_prompt}\n\nIMPORTANT: Read the attached image to understand the user's technical problem or error screenshot, then provide a solution based on both the image and the text."
-                    
-                    # Generate response with image
-                    response = model.generate_content(
-                        [vision_prompt, img],
-                        generation_config=GEMINI_GENERATION_CONFIG
-                    )
-                    
-                    logger.info(f"AI response generated with image analysis for {attachment_filename}")
-                except Exception as img_error:
-                    logger.error(f"Error processing image for AI: {img_error}")
-                    # Fall back to text-only if image processing fails
-                    response = model.generate_content(
-                        f"{system_prompt}\n\n{user_prompt}",
-                        generation_config=GEMINI_GENERATION_CONFIG
-                    )
+        if has_image and PIL_AVAILABLE:
+            # Additional security: ensure filename doesn't contain path separators
+            # (should already be sanitized by secure_filename, but double-check)
+            if '..' in attachment_filename or '/' in attachment_filename or '\\' in attachment_filename:
+                logger.warning(f"Invalid attachment filename detected: {attachment_filename}")
+                response = generate_text_response()
             else:
-                # Image file not found, use text only
-                logger.warning(f"Image file not found: {image_path}")
-                response = model.generate_content(
-                    f"{system_prompt}\n\n{user_prompt}",
-                    generation_config=GEMINI_GENERATION_CONFIG
-                )
+                # Construct secure file path
+                image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
+                
+                # Verify path is within UPLOAD_FOLDER (additional security check)
+                if not os.path.abspath(image_path).startswith(os.path.abspath(UPLOAD_FOLDER)):
+                    logger.warning(f"Path traversal attempt detected: {attachment_filename}")
+                    response = generate_text_response()
+                elif os.path.exists(image_path):
+                    try:
+                        # Load and verify image file
+                        img = Image.open(image_path)
+                        
+                        # Verify it's a valid image (prevents malicious files)
+                        img.verify()
+                        
+                        # Reopen after verify (verify closes the file)
+                        img = Image.open(image_path)
+                        
+                        # Optional: Check image dimensions for reasonable size
+                        if img.width > 10000 or img.height > 10000:
+                            logger.warning(f"Image dimensions too large: {img.width}x{img.height}")
+                            response = generate_text_response()
+                        else:
+                            # Add instruction for image analysis
+                            vision_prompt = f"{system_prompt}\n\n{user_prompt}\n\nIMPORTANT: Read the attached image to understand the user's technical problem or error screenshot, then provide a solution based on both the image and the text."
+                            
+                            # Generate response with image
+                            response = model.generate_content(
+                                [vision_prompt, img],
+                                generation_config=GEMINI_GENERATION_CONFIG
+                            )
+                            
+                            logger.info(f"AI response generated with image analysis for {attachment_filename}")
+                    except Exception as img_error:
+                        logger.error(f"Error processing image for AI: {img_error}")
+                        # Fall back to text-only if image processing fails
+                        response = generate_text_response()
+                else:
+                    # Image file not found, use text only
+                    logger.warning(f"Image file not found: {image_path}")
+                    response = generate_text_response()
+        elif has_image and not PIL_AVAILABLE:
+            # PIL not available, log warning and fall back to text-only
+            logger.warning("PIL/Pillow not installed. Image analysis unavailable. Falling back to text-only response.")
+            response = generate_text_response()
         else:
             # No image - use text-only
-            response = model.generate_content(
-                f"{system_prompt}\n\n{user_prompt}",
-                generation_config=GEMINI_GENERATION_CONFIG
-            )
+            response = generate_text_response()
         
         if response and response.text:
             return response.text.strip()
