@@ -652,11 +652,15 @@ def generate_ai_response(ticket_message, issue_type, user_name, attachment_filen
                            (must be already sanitized with secure_filename)
     
     Returns:
-        AI-generated response string or None if failed
+        AI-generated response string or default fallback message if completely failed
     """
+    # Default fallback message for when AI is completely unavailable
+    DEFAULT_FALLBACK_MESSAGE = "AI suggestion unavailable at the moment. Please review manually."
+    
+    # Check if API key is configured
     if not GEMINI_API_KEY:
         logger.warning("Gemini API key not configured")
-        return None
+        return DEFAULT_FALLBACK_MESSAGE
     
     try:
         # Get FAQ context
@@ -691,96 +695,118 @@ Customer Message: {ticket_message}
 
 Please provide a helpful support response."""
         
-        # Initialize Gemini model (same model for both text and vision)
-        # Updated to use gemini-1.5-flash (faster and currently supported)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Model fallback: Try gemini-1.5-flash first, then fall back to gemini-pro
+        models_to_try = ['gemini-1.5-flash', 'gemini-pro']
         
-        # Helper function to generate text-only response
-        def generate_text_response():
-            return model.generate_content(
-                f"{system_prompt}\n\n{user_prompt}",
-                generation_config=GEMINI_GENERATION_CONFIG
-            )
-        
-        # Check if we have an image attachment for vision analysis
-        has_image = attachment_filename and is_image_file(attachment_filename)
-        
-        # Generate response with or without image
-        if has_image and PIL_AVAILABLE:
-            # Additional security: ensure filename doesn't contain path separators
-            # (should already be sanitized by secure_filename, but double-check)
-            if '..' in attachment_filename or '/' in attachment_filename or '\\' in attachment_filename:
-                logger.warning(f"Invalid attachment filename detected: {attachment_filename}")
-                response = generate_text_response()
-            else:
-                # Construct secure file path
-                image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
+        for model_name in models_to_try:
+            try:
+                logger.info(f"Attempting to use AI model: {model_name}")
                 
-                # Verify path is within UPLOAD_FOLDER (additional security check)
-                if not os.path.abspath(image_path).startswith(os.path.abspath(UPLOAD_FOLDER)):
-                    logger.warning(f"Path traversal attempt detected: {attachment_filename}")
-                    response = generate_text_response()
-                elif os.path.exists(image_path):
-                    try:
-                        # Load and verify image file
-                        img = Image.open(image_path)
-                        
-                        # Verify it's a valid image (prevents malicious files)
-                        img.verify()
-                        
-                        # Reopen after verify (verify closes the file)
-                        img = Image.open(image_path)
-                        
-                        # Optional: Check image dimensions for reasonable size
-                        if img.width > 10000 or img.height > 10000:
-                            logger.warning(f"Image dimensions too large: {img.width}x{img.height}")
-                            response = generate_text_response()
-                        else:
-                            # Add instruction for image analysis
-                            vision_prompt = f"{system_prompt}\n\n{user_prompt}\n\nIMPORTANT: Read the attached image to understand the user's technical problem or error screenshot, then provide a solution based on both the image and the text."
-                            
-                            # Generate response with image
-                            response = model.generate_content(
-                                [vision_prompt, img],
-                                generation_config=GEMINI_GENERATION_CONFIG
-                            )
-                            
-                            logger.info(f"AI response generated with image analysis for {attachment_filename}")
-                    except Exception as img_error:
-                        logger.error(f"Error processing image for AI: {img_error}")
-                        # Fall back to text-only if image processing fails
+                # Initialize Gemini model
+                model = genai.GenerativeModel(model_name)
+                
+                # Helper function to generate text-only response
+                def generate_text_response():
+                    return model.generate_content(
+                        f"{system_prompt}\n\n{user_prompt}",
+                        generation_config=GEMINI_GENERATION_CONFIG
+                    )
+                
+                # Check if we have an image attachment for vision analysis
+                has_image = attachment_filename and is_image_file(attachment_filename)
+                
+                # Generate response with or without image
+                if has_image and PIL_AVAILABLE:
+                    # Additional security: ensure filename doesn't contain path separators
+                    # (should already be sanitized by secure_filename, but double-check)
+                    if '..' in attachment_filename or '/' in attachment_filename or '\\' in attachment_filename:
+                        logger.warning(f"Invalid attachment filename detected: {attachment_filename}")
                         response = generate_text_response()
-                else:
-                    # Image file not found, use text only
-                    logger.warning(f"Image file not found: {image_path}")
+                    else:
+                        # Construct secure file path
+                        image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
+                        
+                        # Verify path is within UPLOAD_FOLDER (additional security check)
+                        if not os.path.abspath(image_path).startswith(os.path.abspath(UPLOAD_FOLDER)):
+                            logger.warning(f"Path traversal attempt detected: {attachment_filename}")
+                            response = generate_text_response()
+                        elif os.path.exists(image_path):
+                            try:
+                                # Load and verify image file
+                                img = Image.open(image_path)
+                                
+                                # Verify it's a valid image (prevents malicious files)
+                                img.verify()
+                                
+                                # Reopen after verify (verify closes the file)
+                                img = Image.open(image_path)
+                                
+                                # Optional: Check image dimensions for reasonable size
+                                if img.width > 10000 or img.height > 10000:
+                                    logger.warning(f"Image dimensions too large: {img.width}x{img.height}")
+                                    response = generate_text_response()
+                                else:
+                                    # Add instruction for image analysis
+                                    vision_prompt = f"{system_prompt}\n\n{user_prompt}\n\nIMPORTANT: Read the attached image to understand the user's technical problem or error screenshot, then provide a solution based on both the image and the text."
+                                    
+                                    # Generate response with image
+                                    response = model.generate_content(
+                                        [vision_prompt, img],
+                                        generation_config=GEMINI_GENERATION_CONFIG
+                                    )
+                                    
+                                    logger.info(f"AI response generated with image analysis for {attachment_filename}")
+                            except Exception as img_error:
+                                logger.error(f"Error processing image for AI: {img_error}")
+                                # Fall back to text-only if image processing fails
+                                response = generate_text_response()
+                        else:
+                            # Image file not found, use text only
+                            logger.warning(f"Image file not found: {image_path}")
+                            response = generate_text_response()
+                elif has_image and not PIL_AVAILABLE:
+                    # PIL not available, log warning and fall back to text-only
+                    logger.warning("PIL/Pillow not installed. Image analysis unavailable. Falling back to text-only response.")
                     response = generate_text_response()
-        elif has_image and not PIL_AVAILABLE:
-            # PIL not available, log warning and fall back to text-only
-            logger.warning("PIL/Pillow not installed. Image analysis unavailable. Falling back to text-only response.")
-            response = generate_text_response()
-        else:
-            # No image - use text-only
-            response = generate_text_response()
+                else:
+                    # No image - use text-only
+                    response = generate_text_response()
+                
+                # If successful, return the response
+                if response and response.text:
+                    logger.info(f"AI response successfully generated using model: {model_name}")
+                    return response.text.strip()
+                else:
+                    logger.warning(f"Model {model_name} returned empty response, trying next model...")
+                    continue
+                    
+            except Exception as model_error:
+                # Log the specific error for this model
+                error_msg = str(model_error).lower()
+                if '404' in error_msg or 'not found' in error_msg:
+                    logger.warning(f"Model {model_name} not found (404 error), trying fallback model...")
+                elif 'api key' in error_msg or 'authentication' in error_msg or 'unauthorized' in error_msg:
+                    logger.error(f"AI API authentication failed with model {model_name}. Check GEMINI_API_KEY: {model_error}")
+                    # Authentication errors won't be fixed by trying another model
+                    return DEFAULT_FALLBACK_MESSAGE
+                elif 'quota' in error_msg or 'limit' in error_msg or 'exceeded' in error_msg:
+                    logger.error(f"AI API quota exceeded with model {model_name}: {model_error}")
+                    # Quota errors won't be fixed by trying another model
+                    return DEFAULT_FALLBACK_MESSAGE
+                else:
+                    logger.warning(f"Error with model {model_name}: {model_error}, trying fallback model...")
+                
+                # Continue to next model in the fallback chain
+                continue
         
-        if response and response.text:
-            return response.text.strip()
-        else:
-            logger.warning("Gemini API returned empty response")
-            return None
+        # If all models failed, return default fallback
+        logger.error("All AI models failed to generate response")
+        return DEFAULT_FALLBACK_MESSAGE
             
     except Exception as e:
-        # Enhanced error handling with specific messages for different error types
-        error_msg = str(e).lower()
-        # Check for specific error patterns to provide helpful debugging information
-        if '404' in error_msg or ('not found' in error_msg and 'model' in error_msg) or 'model not found' in error_msg:
-            logger.error(f"AI Model not found (404 error). Verify model name 'gemini-1.5-flash' is available: {e}")
-        elif 'api key' in error_msg or 'authentication' in error_msg or 'unauthorized' in error_msg:
-            logger.error(f"AI API authentication failed. Check GEMINI_API_KEY environment variable: {e}")
-        elif 'quota' in error_msg or 'limit' in error_msg or 'exceeded' in error_msg:
-            logger.error(f"AI API quota exceeded or rate limited. Try again later: {e}")
-        else:
-            logger.error(f"Error generating AI response: {e}")
-        return None
+        # Catch-all error handler for unexpected errors
+        logger.error(f"Unexpected error in AI generation: {e}", exc_info=True)
+        return DEFAULT_FALLBACK_MESSAGE
 
 
 def generate_ai_suggestion(ticket_message, issue_type, user_name, attachment_filename=None):
@@ -1013,14 +1039,12 @@ def submit():
         # Generate AI draft for admin review (background task)
         try:
             ai_draft = generate_ai_response(message, issue_type, name, attachment_filename)
-            if ai_draft:
-                new_ticket.ai_draft = ai_draft
-                # Keep ai_suggestion for backward compatibility
-                new_ticket.ai_suggestion = ai_draft
-                db.session.commit()
-                logger.info(f"AI draft generated for ticket {ticket_id}")
-            else:
-                logger.warning(f"AI draft generation returned None for ticket {ticket_id}")
+            # AI response now always returns a string (either AI response or fallback message)
+            new_ticket.ai_draft = ai_draft
+            # Keep ai_suggestion for backward compatibility
+            new_ticket.ai_suggestion = ai_draft
+            db.session.commit()
+            logger.info(f"AI draft saved for ticket {ticket_id}")
         except Exception as e:
             logger.error(f"Error generating AI draft: {e}")
         

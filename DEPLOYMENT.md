@@ -16,6 +16,9 @@ workon zetsu-env
 # Install dependencies
 cd /home/Supportzetsu/Support-zetsu-preview
 pip install -r requirements.txt
+
+# To upgrade dependencies (especially after updating requirements.txt)
+pip install --upgrade -r requirements.txt
 ```
 
 ### 3. WSGI Configuration
@@ -90,9 +93,18 @@ workon zetsu-env
 pip install Flask-WTF
 ```
 
-### 404 models/gemini-pro is not found
-- The code now uses `gemini-1.5-flash` (fixed in flask_app.py line 696)
-- Ensure your GEMINI_API_KEY is valid
+### 404 models/gemini-1.5-flash is not found for API version v1beta
+**SOLUTION:**
+1. Update the library to the latest version:
+   ```bash
+   workon zetsu-env
+   cd /home/Supportzetsu/Support-zetsu-preview
+   pip install --upgrade -r requirements.txt
+   ```
+2. The code now uses `gemini-1.5-flash` with automatic fallback to `gemini-pro` if needed
+3. If AI fails completely, a fallback message is displayed: "AI suggestion unavailable at the moment. Please review manually."
+4. Ensure your GEMINI_API_KEY is valid and has API access enabled
+5. Restart the web app after updating dependencies
 
 ### Storage Full
 1. Clean __pycache__: `find . -type d -name "__pycache__" -exec rm -rf {} +`
