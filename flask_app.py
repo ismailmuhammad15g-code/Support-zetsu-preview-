@@ -425,7 +425,7 @@ def send_admin_reply_email(user_email, user_name, ticket_id, original_message, a
     # Check if email credentials are configured
     if not SENDER_EMAIL or not EMAIL_PASSWORD:
         error_msg = "Email credentials not configured. Please set SENDER_EMAIL and EMAIL_PASSWORD environment variables."
-        print(error_msg)
+        logger.warning(error_msg)
         return False, error_msg
     
     # Escape user input to prevent XSS in emails
@@ -500,15 +500,15 @@ def send_admin_reply_email(user_email, user_name, ticket_id, original_message, a
             server.quit()
     except smtplib.SMTPAuthenticationError as e:
         error_msg = f"SMTP Authentication failed. Please check SENDER_EMAIL and EMAIL_PASSWORD. Error: {str(e)}"
-        print(error_msg)
+        logger.error(error_msg)
         return False, error_msg
     except smtplib.SMTPException as e:
         error_msg = f"SMTP error occurred: {str(e)}"
-        print(error_msg)
+        logger.error(error_msg)
         return False, error_msg
     except Exception as e:
         error_msg = f"Error sending admin reply email: {str(e)}"
-        print(error_msg)
+        logger.error(error_msg)
         return False, error_msg
 
 
@@ -534,7 +534,7 @@ def send_to_webhook(ticket_data):
     """
     # Check if webhook URL is configured
     if not N8N_WEBHOOK_URL:
-        print("N8N_WEBHOOK_URL not configured. Skipping webhook send.")
+        logger.info("N8N_WEBHOOK_URL not configured. Skipping webhook send.")
         return False
     
     # Validate webhook URL to prevent SSRF attacks
@@ -544,12 +544,12 @@ def send_to_webhook(ticket_data):
         
         # Only allow HTTPS URLs for security
         if parsed_url.scheme not in ['https', 'http']:
-            print(f"Invalid webhook URL scheme: {parsed_url.scheme}. Only HTTP/HTTPS allowed.")
+            logger.warning(f"Invalid webhook URL scheme: {parsed_url.scheme}. Only HTTP/HTTPS allowed.")
             return False
         
         # Block localhost and private IP ranges to prevent SSRF
         if parsed_url.hostname in ['localhost', '127.0.0.1', '0.0.0.0']:
-            print("Webhook URL cannot point to localhost (SSRF protection)")
+            logger.warning("Webhook URL cannot point to localhost (SSRF protection)")
             return False
             
         # Check for private IP ranges (basic check)
@@ -558,11 +558,11 @@ def send_to_webhook(ticket_data):
             parsed_url.hostname.startswith('192.168.') or
             parsed_url.hostname.startswith('172.16.')
         ):
-            print("Webhook URL cannot point to private IP ranges (SSRF protection)")
+            logger.warning("Webhook URL cannot point to private IP ranges (SSRF protection)")
             return False
             
     except Exception as e:
-        print(f"Error validating webhook URL: {e}")
+        logger.error(f"Error validating webhook URL: {e}")
         return False
     
     try:
@@ -586,20 +586,20 @@ def send_to_webhook(ticket_data):
         
         # Check if request was successful
         if response.status_code in [200, 201, 202]:
-            print(f"Successfully sent ticket {ticket_data.get('ticket_id')} to webhook")
+            logger.info(f"Successfully sent ticket {ticket_data.get('ticket_id')} to webhook")
             return True
         else:
-            print(f"Webhook returned status code {response.status_code}")
+            logger.warning(f"Webhook returned status code {response.status_code}")
             return False
             
     except requests.exceptions.Timeout:
-        print("Webhook request timed out")
+        logger.warning("Webhook request timed out")
         return False
     except requests.exceptions.RequestException as e:
-        print(f"Error sending to webhook: {e}")
+        logger.error(f"Error sending to webhook: {e}")
         return False
     except Exception as e:
-        print(f"Unexpected error in webhook send: {e}")
+        logger.error(f"Unexpected error in webhook send: {e}")
         return False
 
 
@@ -896,7 +896,7 @@ def uploaded_file(filename):
     try:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
     except Exception as e:
-        print(f"Error serving file: {e}")
+        logger.error(f"Error serving file: {e}", exc_info=True)
         flash('Error accessing file.', 'error')
         return redirect(url_for('dashboard'))
 
@@ -1030,7 +1030,7 @@ def submit():
             send_to_webhook(webhook_data)
         except Exception as webhook_error:
             # Log error but don't crash the app
-            print(f"Webhook integration error (non-critical): {webhook_error}")
+            logger.warning(f"Webhook integration error (non-critical): {webhook_error}")
         
         if email_sent:
             flash(f'Thank you, {name}! Your ticket {ticket_id} has been submitted successfully. We\'ve sent a confirmation to {email}.', 'success')
@@ -1039,7 +1039,7 @@ def submit():
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error saving ticket: {e}")
+        logger.error(f"Error saving ticket: {e}", exc_info=True)
         flash('An error occurred while submitting your ticket. Please try again.', 'error')
     
     # Redirect to support page with success message (POST-Redirect-GET pattern)
@@ -1113,7 +1113,7 @@ def register():
             
         except Exception as e:
             db.session.rollback()
-            print(f"Error creating user: {e}")
+            logger.error(f"Error creating user: {e}", exc_info=True)
             flash('An error occurred during registration. Please try again.', 'error')
             return redirect(url_for('register'))
     
@@ -1324,7 +1324,7 @@ def reply_ticket(ticket_id):
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error replying to ticket: {e}")
+        logger.error(f"Error replying to ticket: {e}", exc_info=True)
         flash('An error occurred while sending the reply. Please try again.', 'error')
     
     return redirect(url_for('dashboard'))
