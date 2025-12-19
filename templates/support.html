@@ -43,92 +43,28 @@
     <section class="support-section">
         <div class="container">
             
-            <!-- Submission Status Checklist (appears after form submission) -->
+            <!-- Simplified Success Message (appears after form submission) -->
             {% if submission_status %}
-            <div class="status-checklist-card" id="statusChecklist">
-                <div class="status-header">
-                    <h3>📋 Submission Status</h3>
-                    <p>Your ticket <strong>{{ submission_status.ticket_id }}</strong> was submitted. Here's what happened:</p>
+            <div class="success-modal-card" id="successModal">
+                <div class="success-modal-icon">
+                    <span style="font-size: 64px; color: #107C10;">✅</span>
                 </div>
-                
-                <div class="status-checklist">
-                    <!-- Ticket Created -->
-                    <div class="status-item status-success">
-                        <span class="status-icon">✓</span>
-                        <div class="status-content">
-                            <strong>Ticket Created</strong>
-                            <p>Your support ticket has been created successfully</p>
-                        </div>
+                <div class="success-modal-content">
+                    <h2 style="color: #107C10; margin-bottom: 16px;">Thank You!</h2>
+                    <p style="font-size: 18px; color: #323130; margin-bottom: 24px;">
+                        Your ticket <strong>{{ submission_status.ticket_id }}</strong> has been received.
+                    </p>
+                    <p style="color: #605E5C; margin-bottom: 32px;">
+                        {% if submission_status.email_sent %}
+                        We've sent a confirmation email to your inbox. Our support team will review your request and respond shortly.
+                        {% else %}
+                        Our support team will review your request and respond shortly.
+                        {% endif %}
+                    </p>
+                    <div class="success-modal-actions">
+                        <a href="{{ url_for('track') }}" class="btn btn-primary">Track Your Ticket</a>
+                        <button id="dismissSuccessBtn" class="btn btn-secondary">Close</button>
                     </div>
-                    
-                    <!-- AI Processing Status -->
-                    {% if submission_status.ai_status == 'success' %}
-                    <div class="status-item status-success">
-                        <span class="status-icon">✓</span>
-                        <div class="status-content">
-                            <strong>AI Response Generated</strong>
-                            <p>AI has prepared a response for your ticket</p>
-                        </div>
-                    </div>
-                    {% elif submission_status.ai_status == 'not_configured' %}
-                    <div class="status-item status-warning">
-                        <span class="status-icon">⚠</span>
-                        <div class="status-content">
-                            <strong>AI Not Configured</strong>
-                            <p>Gemini API key is not configured. Admin will respond manually.</p>
-                        </div>
-                    </div>
-                    {% elif submission_status.ai_status == 'fallback' %}
-                    <div class="status-item status-warning">
-                        <span class="status-icon">⚠</span>
-                        <div class="status-content">
-                            <strong>AI Service Unavailable</strong>
-                            <p>{{ submission_status.ai_error or 'AI service is temporarily unavailable. Admin will respond manually.' }}</p>
-                        </div>
-                    </div>
-                    {% elif submission_status.ai_status == 'error' %}
-                    <div class="status-item status-error">
-                        <span class="status-icon">✕</span>
-                        <div class="status-content">
-                            <strong>AI Error</strong>
-                            <p>Error: {{ submission_status.ai_error or 'Unknown AI error occurred' }}</p>
-                            <small>Don't worry - your ticket was saved and admin will respond manually.</small>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Email Status -->
-                    {% if submission_status.email_sent %}
-                    <div class="status-item status-success">
-                        <span class="status-icon">✓</span>
-                        <div class="status-content">
-                            <strong>Email Confirmation Sent</strong>
-                            <p>Check your inbox for ticket confirmation</p>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="status-item status-info">
-                        <span class="status-icon">ℹ</span>
-                        <div class="status-content">
-                            <strong>Email Not Sent</strong>
-                            <p>Email notifications are not configured, but your ticket was saved</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Security Status -->
-                    <div class="status-item status-success">
-                        <span class="status-icon">🔒</span>
-                        <div class="status-content">
-                            <strong>Secure & Safe</strong>
-                            <p>Your data is encrypted and securely stored</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="status-actions">
-                    <a href="{{ url_for('track') }}" class="btn btn-primary">Track Your Ticket</a>
-                    <button id="dismissStatusBtn" class="btn btn-secondary">Dismiss</button>
                 </div>
             </div>
             {% endif %}
@@ -427,13 +363,13 @@
             const submitBtnText = document.getElementById('submitBtnText');
             const submitBtnSpinner = document.getElementById('submitBtnSpinner');
             
-            // Dismiss button for status checklist
-            const dismissBtn = document.getElementById('dismissStatusBtn');
+            // Dismiss button for success modal
+            const dismissBtn = document.getElementById('dismissSuccessBtn');
             if (dismissBtn) {
                 dismissBtn.addEventListener('click', function() {
-                    const statusChecklist = document.getElementById('statusChecklist');
-                    if (statusChecklist) {
-                        statusChecklist.style.display = 'none';
+                    const successModal = document.getElementById('successModal');
+                    if (successModal) {
+                        successModal.style.display = 'none';
                     }
                 });
             }
