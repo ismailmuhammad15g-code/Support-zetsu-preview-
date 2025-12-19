@@ -1211,16 +1211,24 @@ def toggle_admin_status():
         return jsonify({'success': False, 'error': 'Access denied'}), 403
     
     try:
+        # Query the current admin user from database to ensure we have the latest state
+        user = db.session.get(User, current_user.id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
         # Toggle the availability status
-        current_user.is_available = not current_user.is_available
+        user.is_available = not user.is_available
+        
+        # Explicitly commit the change to database
         db.session.commit()
         
-        logger.info(f"Admin availability toggled to: {current_user.is_available}")
+        logger.info(f"Admin availability toggled to: {user.is_available}")
         
+        # Return JSON response with success status and current availability
         return jsonify({
             'success': True,
-            'is_available': current_user.is_available,
-            'message': f"Status updated to {'Available' if current_user.is_available else 'Unavailable'}"
+            'is_available': user.is_available,
+            'message': f"Status updated to {'Available' if user.is_available else 'Unavailable'}"
         }), 200
     
     except Exception as e:
