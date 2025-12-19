@@ -684,10 +684,10 @@ Before going live, ensure:
 - `SECRET_KEY` - Flask secret key for sessions (generate with `secrets.token_hex(32)`)
 
 **AI Integration (New in v3.4.0):**
-- `GEMINI_API_KEY` - Google Gemini API key for AI-powered responses
-  - Default: `AIzaSyBYpMnBd1UMuPDvskn9-ss3LpWkUBdWmR0` (included for demo)
-  - Get your own key at: https://makersuite.google.com/app/apikey
-  - Set via environment variable for production use
+- `GEMINI_API_KEY` - Google Gemini API key for AI-powered responses (REQUIRED)
+  - Get your API key at: https://makersuite.google.com/app/apikey
+  - Must be set via environment variable: `export GEMINI_API_KEY=your-api-key-here`
+  - No default key is provided - you must configure your own
 
 **Optional (for webhook automation):**
 - `N8N_WEBHOOK_URL` - n8n or other webhook URL for automated ticket processing (v3.2.0)

@@ -1785,3 +1785,163 @@ body {
         font-size: 13px;
     }
 }
+
+/* ========================================
+   SUBMISSION STATUS CHECKLIST
+   ======================================== */
+.status-checklist-card {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-depth-16);
+    padding: var(--spacing-xxl);
+    margin-bottom: var(--spacing-xxl);
+    border-left: 4px solid var(--success-green);
+    animation: slideInDown 0.4s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.status-header {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--ms-gray-40);
+}
+
+.status-header h3 {
+    font-size: var(--font-size-large);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.status-header p {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.status-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.status-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    transition: var(--transition-normal);
+}
+
+.status-item:hover {
+    background: var(--ms-gray-30);
+}
+
+.status-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-weight: var(--font-weight-bold);
+}
+
+.status-success .status-icon {
+    background: #DFF6DD;
+    color: var(--success-green);
+}
+
+.status-error .status-icon {
+    background: #FDE7E9;
+    color: var(--error-red);
+}
+
+.status-warning .status-icon {
+    background: #FFF4CE;
+    color: #E97917;
+}
+
+.status-info .status-icon {
+    background: #E6F2FA;
+    color: var(--info-blue);
+}
+
+.status-content {
+    flex: 1;
+}
+
+.status-content strong {
+    display: block;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.status-content p {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.6;
+}
+
+.status-content small {
+    display: block;
+    font-size: 11px;
+    color: var(--text-disabled);
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.status-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.status-actions .btn {
+    padding: var(--spacing-md) var(--spacing-xl);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--ms-gray-50);
+}
+
+.btn-secondary:hover {
+    background: var(--ms-gray-40);
+    border-color: var(--ms-gray-90);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .status-checklist-card {
+        padding: var(--spacing-lg);
+    }
+    
+    .status-actions {
+        flex-direction: column;
+    }
+    
+    .status-actions .btn {
+        width: 100%;
+    }
+}

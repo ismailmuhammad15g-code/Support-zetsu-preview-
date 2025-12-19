@@ -1,5 +1,11 @@
 # PythonAnywhere Deployment Guide
 
+## ⚠️ IMPORTANT: API Key Setup Required
+
+**Before deploying, you MUST configure your Gemini API key!**
+
+All hardcoded API keys have been removed for security. See **PYTHONANYWHERE_SETUP.md** for detailed instructions on setting up your API key via environment variables.
+
 ## Quick Setup Instructions
 
 ### 1. Upload Project Files
