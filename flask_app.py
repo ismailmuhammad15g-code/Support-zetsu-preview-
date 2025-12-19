@@ -25,6 +25,14 @@ from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
+# Try to import PIL for image processing (optional dependency for vision features)
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    logger_warning_shown = False  # Will show warning when needed
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -94,6 +102,14 @@ if GEMINI_API_KEY:
         genai.configure(api_key=GEMINI_API_KEY)
     except Exception as e:
         logger.warning(f"Failed to configure Gemini API: {e}")
+
+# Gemini AI generation configuration
+GEMINI_GENERATION_CONFIG = {
+    'temperature': 0.7,
+    'top_p': 0.9,
+    'top_k': 40,
+    'max_output_tokens': 500,
+}
 
 # Allowed issue types for validation
 ALLOWED_ISSUE_TYPES = {
@@ -622,14 +638,16 @@ def detect_sentiment(message):
     return len(detected) > 0, detected
 
 
-def generate_ai_response(ticket_message, issue_type, user_name):
+def generate_ai_response(ticket_message, issue_type, user_name, attachment_filename=None):
     """
-    Generate AI response using Gemini API
+    Generate AI response using Gemini API with multimodal vision support
     
     Args:
         ticket_message: User's support ticket message
         issue_type: Type of issue submitted
         user_name: Name of the user
+        attachment_filename: Optional filename of attached image for vision analysis
+                           (must be already sanitized with secure_filename)
     
     Returns:
         AI-generated response string or None if failed
@@ -651,6 +669,7 @@ Your role:
 - Keep responses concise but comprehensive (2-4 paragraphs)
 - Be friendly and reassuring
 - If you don't know something, acknowledge it and suggest contacting human support
+- If an image is provided, analyze it to understand the user's technical problem or error screenshot
 
 FAQ Knowledge Base:
 {faq_context}
@@ -670,19 +689,75 @@ Customer Message: {ticket_message}
 
 Please provide a helpful support response."""
         
-        # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-pro')
+        # Initialize Gemini model (same model for both text and vision)
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Generate response
-        response = model.generate_content(
-            f"{system_prompt}\n\n{user_prompt}",
-            generation_config={
-                'temperature': 0.7,
-                'top_p': 0.9,
-                'top_k': 40,
-                'max_output_tokens': 500,
-            }
-        )
+        # Helper function to generate text-only response
+        def generate_text_response():
+            return model.generate_content(
+                f"{system_prompt}\n\n{user_prompt}",
+                generation_config=GEMINI_GENERATION_CONFIG
+            )
+        
+        # Check if we have an image attachment for vision analysis
+        has_image = attachment_filename and is_image_file(attachment_filename)
+        
+        # Generate response with or without image
+        if has_image and PIL_AVAILABLE:
+            # Additional security: ensure filename doesn't contain path separators
+            # (should already be sanitized by secure_filename, but double-check)
+            if '..' in attachment_filename or '/' in attachment_filename or '\\' in attachment_filename:
+                logger.warning(f"Invalid attachment filename detected: {attachment_filename}")
+                response = generate_text_response()
+            else:
+                # Construct secure file path
+                image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
+                
+                # Verify path is within UPLOAD_FOLDER (additional security check)
+                if not os.path.abspath(image_path).startswith(os.path.abspath(UPLOAD_FOLDER)):
+                    logger.warning(f"Path traversal attempt detected: {attachment_filename}")
+                    response = generate_text_response()
+                elif os.path.exists(image_path):
+                    try:
+                        # Load and verify image file
+                        img = Image.open(image_path)
+                        
+                        # Verify it's a valid image (prevents malicious files)
+                        img.verify()
+                        
+                        # Reopen after verify (verify closes the file)
+                        img = Image.open(image_path)
+                        
+                        # Optional: Check image dimensions for reasonable size
+                        if img.width > 10000 or img.height > 10000:
+                            logger.warning(f"Image dimensions too large: {img.width}x{img.height}")
+                            response = generate_text_response()
+                        else:
+                            # Add instruction for image analysis
+                            vision_prompt = f"{system_prompt}\n\n{user_prompt}\n\nIMPORTANT: Read the attached image to understand the user's technical problem or error screenshot, then provide a solution based on both the image and the text."
+                            
+                            # Generate response with image
+                            response = model.generate_content(
+                                [vision_prompt, img],
+                                generation_config=GEMINI_GENERATION_CONFIG
+                            )
+                            
+                            logger.info(f"AI response generated with image analysis for {attachment_filename}")
+                    except Exception as img_error:
+                        logger.error(f"Error processing image for AI: {img_error}")
+                        # Fall back to text-only if image processing fails
+                        response = generate_text_response()
+                else:
+                    # Image file not found, use text only
+                    logger.warning(f"Image file not found: {image_path}")
+                    response = generate_text_response()
+        elif has_image and not PIL_AVAILABLE:
+            # PIL not available, log warning and fall back to text-only
+            logger.warning("PIL/Pillow not installed. Image analysis unavailable. Falling back to text-only response.")
+            response = generate_text_response()
+        else:
+            # No image - use text-only
+            response = generate_text_response()
         
         if response and response.text:
             return response.text.strip()
@@ -695,7 +770,7 @@ Please provide a helpful support response."""
         return None
 
 
-def generate_ai_suggestion(ticket_message, issue_type, user_name):
+def generate_ai_suggestion(ticket_message, issue_type, user_name, attachment_filename=None):
     """
     Generate AI suggestion for admin (non-auto-sent)
     This is always generated for admin to see as a draft
@@ -704,12 +779,13 @@ def generate_ai_suggestion(ticket_message, issue_type, user_name):
         ticket_message: User's support ticket message
         issue_type: Type of issue submitted
         user_name: Name of the user
+        attachment_filename: Optional filename of attached image for vision analysis
     
     Returns:
         AI-generated suggestion string or None if failed
     """
-    # Use the same function but with different context
-    return generate_ai_response(ticket_message, issue_type, user_name)
+    # Use the same function with image support
+    return generate_ai_response(ticket_message, issue_type, user_name, attachment_filename)
 
 # ========================================
 # ROUTES
@@ -933,25 +1009,32 @@ def submit():
         except Exception as e:
             logger.error(f"Error checking admin availability: {e}")
         
-        # Generate AI suggestion for admin (always done, regardless of availability)
+        # Generate AI suggestion for admin (ALWAYS done for EVERY ticket, regardless of availability)
         try:
-            ai_suggestion = generate_ai_suggestion(message, issue_type, name)
+            ai_suggestion = generate_ai_suggestion(message, issue_type, name, attachment_filename)
             if ai_suggestion:
                 new_ticket.ai_suggestion = ai_suggestion
                 db.session.commit()
                 logger.info(f"AI suggestion generated for ticket {ticket_id}")
+            else:
+                logger.warning(f"AI suggestion generation returned None for ticket {ticket_id}")
         except Exception as e:
             logger.error(f"Error generating AI suggestion: {e}")
         
         # Decide whether to auto-respond with AI
-        # If urgent sentiment OR admin unavailable -> AI responds automatically
+        # AI responds automatically when: admin is unavailable OR urgent sentiment detected
         should_ai_respond = (not admin_available) or is_urgent_sentiment
         
-        if should_ai_respond and not admin_available:
-            # Admin is unavailable - trigger AI auto-response
-            logger.info(f"Admin unavailable. Triggering AI auto-response for ticket {ticket_id}")
+        if should_ai_respond:
+            # Trigger AI auto-response
+            if not admin_available:
+                logger.info(f"Admin unavailable. Triggering AI auto-response for ticket {ticket_id}")
+            if is_urgent_sentiment:
+                logger.info(f"Urgent sentiment detected. Triggering AI auto-response for ticket {ticket_id}")
+            
             try:
-                ai_response = generate_ai_response(message, issue_type, name)
+                # Generate AI response with image support if available
+                ai_response = generate_ai_response(message, issue_type, name, attachment_filename)
                 if ai_response:
                     # Save AI response as admin reply
                     new_ticket.admin_reply = f"[AI Assistant Response]\n\n{ai_response}"
@@ -968,6 +1051,8 @@ def submit():
                         logger.error(f"Error sending AI response email: {email_error}")
                     
                     logger.info(f"AI auto-response saved for ticket {ticket_id}")
+                else:
+                    logger.warning(f"AI auto-response generation returned None for ticket {ticket_id}")
             except Exception as ai_error:
                 logger.error(f"Error generating AI auto-response: {ai_error}")
         else:
