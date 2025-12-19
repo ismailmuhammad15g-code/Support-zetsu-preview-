@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draft Pulls - ZetsuServ</title>
+    <!-- Link to Microsoft Fluent Design CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Hidden CSRF token for AJAX requests -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <!-- Logo/Brand -->
+            <div class="navbar-brand">
+                <h1>ZetsuServ</h1>
+            </div>
+            <!-- Hamburger Menu Button (Mobile) -->
+            <button class="hamburger-menu" id="hamburgerBtn" aria-label="Toggle navigation">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            <!-- Navigation Links -->
+            <ul class="navbar-nav" id="navbarNav">
+                <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
+                <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
+                <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+                <li><a href="{{ url_for('draft_pulls') }}" class="nav-link active">Draft Pulls</a></li>
+                <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Page Header -->
+            <div class="dashboard-header">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div>
+                        <h1 class="page-title">Draft Pulls</h1>
+                        <p class="page-subtitle">Review and send AI-generated draft responses</p>
+                    </div>
+                </div>
+                
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ total_pending }}</div>
+                        <div class="stat-label">Pending Review</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tickets Section -->
+            {% if tickets %}
+                <!-- Desktop View: Data Table -->
+                <div class="tickets-table-container">
+                    <table class="tickets-table">
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Issue Type</th>
+                                <th>Priority</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ticket in tickets %}
+                            <tr class="ticket-row" data-ticket-id="{{ ticket.id }}">
+                                <td><strong>{{ ticket.ticket_id }}</strong></td>
+                                <td>{{ ticket.name }}</td>
+                                <td>{{ ticket.email }}</td>
+                                <td>{{ ticket.issue_type }}</td>
+                                <td>
+                                    <span class="badge badge-priority-{{ ticket.priority.lower() }}">
+                                        {{ ticket.priority }}
+                                    </span>
+                                </td>
+                                <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <button 
+                                        class="btn btn-small btn-view" 
+                                        onclick="toggleTicketDetails({{ ticket.id }})"
+                                    >
+                                        Review
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr id="details-{{ ticket.id }}" class="ticket-details-row" style="display: none;">
+                                <td colspan="7">
+                                    <div class="ticket-details">
+                                        <div class="ticket-detail-section">
+                                            <h4>Customer Message:</h4>
+                                            <p class="ticket-message">{{ ticket.message }}</p>
+                                        </div>
+                                        
+                                        {% if ticket.attachment_filename %}
+                                        <div class="ticket-detail-section">
+                                            <h4>Attachment:</h4>
+                                            {% if is_image_file(ticket.attachment_filename) %}
+                                                <div class="attachment-preview">
+                                                    <img src="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                                         alt="{{ ticket.attachment_filename }}"
+                                                         style="max-width: 100%; max-height: 400px; border-radius: 4px; margin-top: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                                    <p style="margin-top: 8px; color: #605E5C;">
+                                                        <a href="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                                           target="_blank" 
+                                                           style="color: #0078D4; text-decoration: none;">
+                                                            📥 Download {{ ticket.attachment_filename }}
+                                                        </a>
+                                                    </p>
+                                                </div>
+                                            {% else %}
+                                                <p>
+                                                    <a href="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                                       target="_blank"
+                                                       style="color: #0078D4; text-decoration: none;">
+                                                        📎 {{ ticket.attachment_filename }}
+                                                    </a>
+                                                </p>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- AI Draft Section -->
+                                        <div class="ticket-detail-section" style="background: #F3F2F1; border-left: 4px solid #0078D4; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
+                                            <h4 style="color: #0078D4; margin-bottom: 12px;">🤖 AI Generated Draft:</h4>
+                                            {% if ticket.ai_draft %}
+                                                <div class="ai-draft-display" style="color: #323130; line-height: 1.6; white-space: pre-wrap; background: white; padding: 12px; border-radius: 4px;">{{ ticket.ai_draft }}</div>
+                                            {% else %}
+                                                <p style="color: #605E5C; font-style: italic;">No AI draft available. AI may have failed to generate a response.</p>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <!-- Edit and Send Section -->
+                                        <div class="ticket-detail-section">
+                                            <h4>Review and Send Response:</h4>
+                                            <form method="POST" action="{{ url_for('review_and_send', ticket_id=ticket.id) }}" class="reply-form">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <textarea 
+                                                    name="final_response" 
+                                                    id="response-textarea-{{ ticket.id }}"
+                                                    class="form-textarea" 
+                                                    rows="6" 
+                                                    placeholder="Edit the AI draft or write your own response..."
+                                                    required
+                                                >{{ ticket.ai_draft or '' }}</textarea>
+                                                <button type="submit" class="btn btn-primary btn-reply">
+                                                    Send Response to Customer
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile View: Ticket Cards -->
+                <div class="tickets-mobile">
+                    {% for ticket in tickets %}
+                    <div class="ticket-card">
+                        <div class="ticket-card-header">
+                            <div>
+                                <strong class="ticket-id">{{ ticket.ticket_id }}</strong>
+                                <span class="badge badge-status-open">Pending Review</span>
+                            </div>
+                            <span class="badge badge-priority-{{ ticket.priority.lower() }}">
+                                {{ ticket.priority }}
+                            </span>
+                        </div>
+                        
+                        <div class="ticket-card-body">
+                            <div class="ticket-info-row">
+                                <span class="info-label">Name:</span>
+                                <span class="info-value">{{ ticket.name }}</span>
+                            </div>
+                            <div class="ticket-info-row">
+                                <span class="info-label">Email:</span>
+                                <span class="info-value">{{ ticket.email }}</span>
+                            </div>
+                            <div class="ticket-info-row">
+                                <span class="info-label">Type:</span>
+                                <span class="info-value">{{ ticket.issue_type }}</span>
+                            </div>
+                            <div class="ticket-info-row">
+                                <span class="info-label">Created:</span>
+                                <span class="info-value">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                            </div>
+                            
+                            <div class="ticket-message-preview">
+                                <strong>Message:</strong>
+                                <p>{{ ticket.message }}</p>
+                            </div>
+                            
+                            {% if ticket.attachment_filename %}
+                            <div class="ticket-attachment">
+                                <strong>📎 Attachment:</strong>
+                                {% if is_image_file(ticket.attachment_filename) %}
+                                    <div class="attachment-preview" style="margin-top: 8px;">
+                                        <img src="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                             alt="{{ ticket.attachment_filename }}"
+                                             style="max-width: 100%; max-height: 300px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <p style="margin-top: 8px;">
+                                            <a href="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                               target="_blank"
+                                               style="color: #0078D4; text-decoration: none;">
+                                                📥 Download {{ ticket.attachment_filename }}
+                                            </a>
+                                        </p>
+                                    </div>
+                                {% else %}
+                                    <a href="{{ url_for('uploaded_file', filename=ticket.attachment_filename) }}" 
+                                       target="_blank"
+                                       style="color: #0078D4; text-decoration: none;">
+                                        {{ ticket.attachment_filename }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- AI Draft Preview -->
+                            <div style="background: #F3F2F1; border-left: 4px solid #0078D4; padding: 12px; border-radius: 4px; margin-top: 12px;">
+                                <strong style="color: #0078D4;">🤖 AI Draft:</strong>
+                                {% if ticket.ai_draft %}
+                                    <p style="margin-top: 8px; font-size: 13px; line-height: 1.5; white-space: pre-wrap;">{{ ticket.ai_draft[:200] }}{% if ticket.ai_draft|length > 200 %}...{% endif %}</p>
+                                {% else %}
+                                    <p style="margin-top: 8px; font-size: 13px; font-style: italic; color: #605E5C;">No draft available</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="ticket-card-footer">
+                            <button 
+                                class="btn btn-small btn-expand" 
+                                onclick="toggleReviewForm({{ ticket.id }})"
+                            >
+                                Review & Send
+                            </button>
+                            
+                            <div id="mobile-review-{{ ticket.id }}" class="mobile-reply-form" style="display: none;">
+                                <form method="POST" action="{{ url_for('review_and_send', ticket_id=ticket.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <textarea 
+                                        name="final_response" 
+                                        id="response-textarea-mobile-{{ ticket.id }}"
+                                        class="form-textarea" 
+                                        rows="6" 
+                                        placeholder="Edit the AI draft or write your own response..."
+                                        required
+                                    >{{ ticket.ai_draft or '' }}</textarea>
+                                    <button type="submit" class="btn btn-primary btn-block">
+                                        Send Response to Customer
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">✅</div>
+                    <h2>All Clear!</h2>
+                    <p>No pending drafts to review. All tickets have been processed.</p>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by ZetsuServ AI</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for interactive elements -->
+    <script>
+        function toggleTicketDetails(ticketId) {
+            const detailsRow = document.getElementById('details-' + ticketId);
+            if (detailsRow.style.display === 'none') {
+                detailsRow.style.display = 'table-row';
+            } else {
+                detailsRow.style.display = 'none';
+            }
+        }
+        
+        function toggleReviewForm(ticketId) {
+            const reviewForm = document.getElementById('mobile-review-' + ticketId);
+            if (reviewForm.style.display === 'none') {
+                reviewForm.style.display = 'block';
+            } else {
+                reviewForm.style.display = 'none';
+            }
+        }
+    </script>
+
+    <!-- Toast Notification System -->
+    <script>
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            // Icon based on type
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            // Create elements safely
+            const icon = document.createElement('span');
+            icon.className = 'toast-icon';
+            icon.textContent = icons[type] || icons.info;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.className = 'toast-message';
+            messageSpan.textContent = message; // Use textContent to prevent XSS
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'toast-close';
+            closeBtn.textContent = '×';
+            closeBtn.onclick = function() { 
+                toast.classList.add('toast-out'); 
+            };
+            
+            toast.appendChild(icon);
+            toast.appendChild(messageSpan);
+            toast.appendChild(closeBtn);
+            
+            container.appendChild(toast);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.add('toast-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+        
+        // Show flash messages as toasts on page load
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                window.addEventListener('DOMContentLoaded', function() {
+                    {% for category, message in messages %}
+                        showToast({{ message|tojson }}, {{ category|tojson }});
+                    {% endfor %}
+                });
+            {% endif %}
+        {% endwith %}
+    </script>
+
+    <!-- Hamburger Menu Script -->
+    <script src="{{ url_for('static', filename='hamburger-menu.js') }}"></script>
+</body>
+</html>

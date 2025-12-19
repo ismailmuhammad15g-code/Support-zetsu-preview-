@@ -168,11 +168,12 @@ class Ticket(db.Model):
     issue_type = db.Column(db.String(50), nullable=False)
     priority = db.Column(db.String(20), nullable=False, default='Medium')
     message = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(20), nullable=False, default='Open')
+    status = db.Column(db.String(20), nullable=False, default='pending_review')
     attachment_filename = db.Column(db.String(255), nullable=True)
     admin_reply = db.Column(db.Text, nullable=True)
     ai_responded = db.Column(db.Boolean, nullable=False, default=False)
     ai_suggestion = db.Column(db.Text, nullable=True)
+    ai_draft = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
@@ -194,6 +195,7 @@ class Ticket(db.Model):
             'admin_reply': self.admin_reply,
             'ai_responded': self.ai_responded,
             'ai_suggestion': self.ai_suggestion,
+            'ai_draft': self.ai_draft,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S')
         }
@@ -967,7 +969,7 @@ def submit():
         # Generate ticket ID
         ticket_id = generate_ticket_id()
         
-        # Create new ticket
+        # Create new ticket with pending_review status
         new_ticket = Ticket(
             ticket_id=ticket_id,
             name=name,
@@ -976,7 +978,7 @@ def submit():
             priority=priority,
             message=message,
             attachment_filename=attachment_filename,
-            status='Open'
+            status='pending_review'
         )
         
         # Save to database
@@ -997,67 +999,19 @@ def submit():
         logger.info(f"Attachment: {attachment_filename}")
         logger.info("=" * 50)
         
-        # === HYBRID AI LOGIC ===
-        # Check admin availability and handle AI response
-        admin_available = True  # Default to available
+        # Generate AI draft for admin review (background task)
         try:
-            # Get the first admin user (should be only one)
-            admin_user = User.query.filter_by(is_admin=True).first()
-            if admin_user:
-                admin_available = admin_user.is_available
-                logger.info(f"Admin availability status: {admin_available}")
-        except Exception as e:
-            logger.error(f"Error checking admin availability: {e}")
-        
-        # Generate AI suggestion for admin (ALWAYS done for EVERY ticket, regardless of availability)
-        try:
-            ai_suggestion = generate_ai_suggestion(message, issue_type, name, attachment_filename)
-            if ai_suggestion:
-                new_ticket.ai_suggestion = ai_suggestion
+            ai_draft = generate_ai_response(message, issue_type, name, attachment_filename)
+            if ai_draft:
+                new_ticket.ai_draft = ai_draft
+                # Keep ai_suggestion for backward compatibility
+                new_ticket.ai_suggestion = ai_draft
                 db.session.commit()
-                logger.info(f"AI suggestion generated for ticket {ticket_id}")
+                logger.info(f"AI draft generated for ticket {ticket_id}")
             else:
-                logger.warning(f"AI suggestion generation returned None for ticket {ticket_id}")
+                logger.warning(f"AI draft generation returned None for ticket {ticket_id}")
         except Exception as e:
-            logger.error(f"Error generating AI suggestion: {e}")
-        
-        # Decide whether to auto-respond with AI
-        # AI responds automatically when: admin is unavailable OR urgent sentiment detected
-        should_ai_respond = (not admin_available) or is_urgent_sentiment
-        
-        if should_ai_respond:
-            # Trigger AI auto-response
-            if not admin_available:
-                logger.info(f"Admin unavailable. Triggering AI auto-response for ticket {ticket_id}")
-            if is_urgent_sentiment:
-                logger.info(f"Urgent sentiment detected. Triggering AI auto-response for ticket {ticket_id}")
-            
-            try:
-                # Generate AI response with image support if available
-                ai_response = generate_ai_response(message, issue_type, name, attachment_filename)
-                if ai_response:
-                    # Save AI response as admin reply
-                    new_ticket.admin_reply = f"[AI Assistant Response]\n\n{ai_response}"
-                    new_ticket.ai_responded = True
-                    new_ticket.status = 'Resolved'  # Mark as resolved by AI
-                    new_ticket.updated_at = datetime.now(timezone.utc)
-                    db.session.commit()
-                    
-                    # Send AI response to user via email
-                    try:
-                        send_admin_reply_email(email, name, ticket_id, message, ai_response)
-                        logger.info(f"AI response sent via email for ticket {ticket_id}")
-                    except Exception as email_error:
-                        logger.error(f"Error sending AI response email: {email_error}")
-                    
-                    logger.info(f"AI auto-response saved for ticket {ticket_id}")
-                else:
-                    logger.warning(f"AI auto-response generation returned None for ticket {ticket_id}")
-            except Exception as ai_error:
-                logger.error(f"Error generating AI auto-response: {ai_error}")
-        else:
-            # Admin is available - send notification only (no AI auto-response)
-            logger.info(f"Admin available. Sending notification only for ticket {ticket_id}")
+            logger.error(f"Error generating AI draft: {e}")
         
         # Send email notifications (confirmation to user, notification to admin)
         email_sent = send_email(email, name, message, issue_type, ticket_id, priority)
@@ -1253,8 +1207,8 @@ def dashboard():
     
     # Calculate statistics (from all tickets, not filtered)
     all_tickets = Ticket.query.all()
-    open_count = sum(1 for t in all_tickets if t.status == 'Open')
-    resolved_count = sum(1 for t in all_tickets if t.status == 'Resolved')
+    open_count = sum(1 for t in all_tickets if t.status in ['Open', 'pending_review'])
+    resolved_count = sum(1 for t in all_tickets if t.status in ['Resolved', 'sent'])
     total_count = len(all_tickets)
     
     # Calculate priority statistics
@@ -1579,6 +1533,87 @@ def delete_ticket(ticket_id):
         flash('An error occurred while deleting the ticket.', 'error')
     
     return redirect(url_for('dashboard'))
+
+
+@app.route('/admin/draft_pulls')
+@login_required
+def draft_pulls():
+    """
+    Admin page to view and manage draft responses
+    Shows tickets with pending_review status
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    # Get all tickets with pending_review status
+    pending_tickets = Ticket.query.filter_by(status='pending_review').order_by(Ticket.created_at.desc()).all()
+    
+    # Calculate statistics
+    total_pending = len(pending_tickets)
+    
+    return render_template('draft_pulls.html', 
+                         tickets=pending_tickets,
+                         total_pending=total_pending,
+                         is_image_file=is_image_file)
+
+
+@app.route('/admin/review_and_send/<int:ticket_id>', methods=['POST'])
+@login_required
+def review_and_send(ticket_id):
+    """
+    Review and send the AI draft response to user
+    Admin only route
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    # Get the ticket
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        flash('Ticket not found.', 'error')
+        return redirect(url_for('draft_pulls'))
+    
+    # Get edited response from form
+    final_response = request.form.get('final_response', '').strip()
+    
+    if not final_response:
+        flash('Response message cannot be empty.', 'error')
+        return redirect(url_for('draft_pulls'))
+    
+    try:
+        # Update ticket with final response and status
+        ticket.admin_reply = final_response
+        ticket.status = 'sent'
+        ticket.updated_at = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        
+        # Send email to user with final response
+        email_sent, error_message = send_admin_reply_email(
+            ticket.email,
+            ticket.name,
+            ticket.ticket_id,
+            ticket.message,
+            final_response
+        )
+        
+        if email_sent:
+            flash(f'Response sent successfully to {ticket.email}. Ticket {ticket.ticket_id} marked as Sent.', 'success')
+        else:
+            # Provide detailed error message to admin
+            if error_message:
+                flash(f'Response saved and ticket marked as Sent, but email notification failed: {error_message}', 'warning')
+            else:
+                flash(f'Response saved and ticket marked as Sent, but email notification failed.', 'warning')
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error sending response: {e}")
+        flash('An error occurred while sending the response. Please try again.', 'error')
+    
+    return redirect(url_for('draft_pulls'))
 
 
 # Run the application
