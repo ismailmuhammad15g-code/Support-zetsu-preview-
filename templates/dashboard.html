@@ -11,6 +11,9 @@
     <!-- Toast Notification Container -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <!-- Hidden CSRF token for AJAX requests -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="container">
