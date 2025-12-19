@@ -1,32 +1,9 @@
-# ZetsuServ Support Portal - Python Dependencies
-# Production-ready Flask web application
-
-# Core Framework
 Flask==3.0.0
 Werkzeug==3.0.1
-Jinja2==3.1.2
-
-# Security & Authentication
-itsdangerous==2.1.2
-MarkupSafe==2.1.3
 Flask-Login==0.6.3
-
-# Database Support
 Flask-SQLAlchemy==3.1.1
-SQLAlchemy==2.0.23
-
-# Forms & Validation
 Flask-WTF==1.2.1
-WTForms==3.1.1
-
-# HTTP Requests for Webhooks
 requests==2.31.0
-
-# AI Integration
 google-generativeai==0.3.2
-
-# File Upload Support (for image vision features)
 Pillow==10.1.0
-
-# WSGI Server for Production
 gunicorn==21.2.0
