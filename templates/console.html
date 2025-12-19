@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Console - ZetsuServ</title>
+    <!-- Link to Microsoft Fluent Design CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .console-section {
+            margin-bottom: 32px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        
+        .status-card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .status-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .status-healthy { background-color: #107C10; }
+        .status-configured { background-color: #0078D4; }
+        .status-not_configured { background-color: #F7B500; }
+        .status-error { background-color: #D13438; }
+        .status-unknown { background-color: #A19F9D; }
+        
+        .status-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #323130;
+        }
+        
+        .status-message {
+            color: #605E5C;
+            font-size: 14px;
+        }
+        
+        .recent-tickets-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .recent-tickets-table th {
+            background: #F3F2F1;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #323130;
+            border-bottom: 2px solid #E1DFDD;
+        }
+        
+        .recent-tickets-table td {
+            padding: 12px;
+            border-bottom: 1px solid #E1DFDD;
+            color: #605E5C;
+        }
+        
+        .recent-tickets-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .recent-tickets-table tr:hover {
+            background: #FAF9F8;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-success { background: #DFF6DD; color: #107C10; }
+        .badge-warning { background: #FFF4CE; color: #8A6116; }
+        .badge-error { background: #FDE7E9; color: #A4262C; }
+        .badge-info { background: #E3F2FD; color: #0078D4; }
+    </style>
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <!-- Logo/Brand -->
+            <div class="navbar-brand">
+                <h1>ZetsuServ</h1>
+            </div>
+            <!-- Hamburger Menu Button (Mobile) -->
+            <button class="hamburger-menu" id="hamburgerBtn" aria-label="Toggle navigation">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            <!-- Navigation Links -->
+            <ul class="navbar-nav" id="navbarNav">
+                <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
+                <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
+                <li><a href="{{ url_for('faq') }}" class="nav-link">FAQ</a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+                <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+                <li><a href="{{ url_for('draft_pulls') }}" class="nav-link">Draft Pulls</a></li>
+                <li><a href="{{ url_for('console') }}" class="nav-link active">Console</a></li>
+                <li><a href="{{ url_for('logout') }}" class="nav-link">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Console Header -->
+            <div class="console-section">
+                <h1 class="page-title">System Console</h1>
+                <p class="page-subtitle">Monitor system health and diagnostic information</p>
+            </div>
+
+            <!-- System Health Status -->
+            <div class="console-section">
+                <h2 style="color: #323130; margin-bottom: 16px;">System Health Status</h2>
+                <div class="status-grid">
+                    <!-- Database Status -->
+                    <div class="status-card">
+                        <div class="status-card-header">
+                            <span class="status-indicator status-{{ system_status.database.status }}"></span>
+                            <span class="status-title">Database</span>
+                        </div>
+                        <p class="status-message">{{ system_status.database.message }}</p>
+                    </div>
+
+                    <!-- AI API Status -->
+                    <div class="status-card">
+                        <div class="status-card-header">
+                            <span class="status-indicator status-{{ system_status.ai_api.status }}"></span>
+                            <span class="status-title">AI API (Gemini)</span>
+                        </div>
+                        <p class="status-message">{{ system_status.ai_api.message }}</p>
+                    </div>
+
+                    <!-- Email Status -->
+                    <div class="status-card">
+                        <div class="status-card-header">
+                            <span class="status-indicator status-{{ system_status.email.status }}"></span>
+                            <span class="status-title">Email Service (SMTP)</span>
+                        </div>
+                        <p class="status-message">{{ system_status.email.message }}</p>
+                    </div>
+
+                    <!-- Webhook Status -->
+                    <div class="status-card">
+                        <div class="status-card-header">
+                            <span class="status-indicator status-{{ system_status.webhook.status }}"></span>
+                            <span class="status-title">Webhook (n8n)</span>
+                        </div>
+                        <p class="status-message">{{ system_status.webhook.message }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Tickets with Submission Details -->
+            <div class="console-section">
+                <h2 style="color: #323130; margin-bottom: 16px;">Recent Ticket Submissions (Last 10)</h2>
+                <table class="recent-tickets-table">
+                    <thead>
+                        <tr>
+                            <th>Ticket ID</th>
+                            <th>Created</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>AI Response</th>
+                            <th>Email Sent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if recent_tickets %}
+                            {% for ticket in recent_tickets %}
+                            <tr>
+                                <td><strong>{{ ticket.ticket_id }}</strong></td>
+                                <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% if ticket.priority == 'Urgent' %}
+                                        <span class="badge badge-error">{{ ticket.priority }}</span>
+                                    {% elif ticket.priority == 'High' %}
+                                        <span class="badge badge-warning">{{ ticket.priority }}</span>
+                                    {% else %}
+                                        <span class="badge badge-info">{{ ticket.priority }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ ticket.status }}</td>
+                                <td>
+                                    {% if ticket.ai_draft %}
+                                        <span class="badge badge-success">Generated</span>
+                                    {% else %}
+                                        <span class="badge badge-warning">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge badge-info">N/A</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 24px; color: #A19F9D;">
+                                    No tickets found
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Configuration Information -->
+            <div class="console-section">
+                <h2 style="color: #323130; margin-bottom: 16px;">Configuration</h2>
+                <div style="background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        <li style="padding: 12px 0; border-bottom: 1px solid #E1DFDD;">
+                            <strong>AI Model:</strong> models/gemini-2.5-flash
+                        </li>
+                        <li style="padding: 12px 0; border-bottom: 1px solid #E1DFDD;">
+                            <strong>API Key Configured:</strong> {{ 'Yes' if system_status.ai_api.status == 'configured' else 'No' }}
+                        </li>
+                        <li style="padding: 12px 0; border-bottom: 1px solid #E1DFDD;">
+                            <strong>Email Configured:</strong> {{ 'Yes' if system_status.email.status == 'configured' else 'No' }}
+                        </li>
+                        <li style="padding: 12px 0;">
+                            <strong>Webhook Configured:</strong> {{ 'Yes' if system_status.webhook.status == 'configured' else 'No' }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>Powered by ZetsuServ AI</p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification System -->
+    <script>
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            const icon = document.createElement('span');
+            icon.className = 'toast-icon';
+            icon.textContent = icons[type] || icons.info;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.className = 'toast-message';
+            messageSpan.textContent = message;
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'toast-close';
+            closeBtn.textContent = '×';
+            closeBtn.onclick = function() { 
+                toast.classList.add('toast-out'); 
+            };
+            
+            toast.appendChild(icon);
+            toast.appendChild(messageSpan);
+            toast.appendChild(closeBtn);
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('toast-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+        
+        // Show flash messages as toasts on page load
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                window.addEventListener('DOMContentLoaded', function() {
+                    {% for category, message in messages %}
+                        showToast({{ message|tojson }}, {{ category|tojson }});
+                    {% endfor %}
+                });
+            {% endif %}
+        {% endwith %}
+    </script>
+
+    <!-- Hamburger Menu Script -->
+    <script src="{{ url_for('static', filename='hamburger-menu.js') }}"></script>
+</body>
+</html>

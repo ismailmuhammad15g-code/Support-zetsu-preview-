@@ -698,127 +698,117 @@ Customer Message: {ticket_message}
 
 Please provide a helpful support response."""
         
-        # Model fallback: Try gemini-1.5-flash first, then fall back to gemini-pro
-        models_to_try = ['gemini-1.5-flash', 'gemini-pro']
+        # Use the confirmed working model for this environment
+        model_name = 'models/gemini-2.5-flash'
         
-        for model_name in models_to_try:
-            try:
-                logger.info(f"Attempting to use AI model: {model_name}")
-                
-                # Initialize Gemini model
-                model = genai.GenerativeModel(model_name)
-                
-                # Check if we have an image attachment for vision analysis
-                has_image = attachment_filename and is_image_file(attachment_filename)
-                
-                # Generate response with or without image
-                if has_image and PIL_AVAILABLE:
-                    # Additional security: ensure filename doesn't contain path separators
-                    # (should already be sanitized by secure_filename, but double-check)
-                    if '..' in attachment_filename or '/' in attachment_filename or '\\' in attachment_filename:
-                        logger.warning(f"Invalid attachment filename detected: {attachment_filename}")
+        try:
+            logger.info(f"Attempting to use AI model: {model_name}")
+            
+            # Initialize Gemini model
+            model = genai.GenerativeModel(model_name)
+            
+            # Check if we have an image attachment for vision analysis
+            has_image = attachment_filename and is_image_file(attachment_filename)
+        
+            # Generate response with or without image
+            if has_image and PIL_AVAILABLE:
+                # Additional security: ensure filename doesn't contain path separators
+                # (should already be sanitized by secure_filename, but double-check)
+                if '..' in attachment_filename or '/' in attachment_filename or '\\' in attachment_filename:
+                    logger.warning(f"Invalid attachment filename detected: {attachment_filename}")
+                    response = model.generate_content(
+                        f"{system_prompt}\n\n{user_prompt}",
+                        generation_config=GEMINI_GENERATION_CONFIG
+                    )
+                else:
+                    # Construct secure file path
+                    image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
+                    
+                    # Verify path is within UPLOAD_FOLDER (additional security check)
+                    if not os.path.abspath(image_path).startswith(os.path.abspath(UPLOAD_FOLDER)):
+                        logger.warning(f"Path traversal attempt detected: {attachment_filename}")
                         response = model.generate_content(
                             f"{system_prompt}\n\n{user_prompt}",
                             generation_config=GEMINI_GENERATION_CONFIG
                         )
-                    else:
-                        # Construct secure file path
-                        image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
-                        
-                        # Verify path is within UPLOAD_FOLDER (additional security check)
-                        if not os.path.abspath(image_path).startswith(os.path.abspath(UPLOAD_FOLDER)):
-                            logger.warning(f"Path traversal attempt detected: {attachment_filename}")
-                            response = model.generate_content(
-                                f"{system_prompt}\n\n{user_prompt}",
-                                generation_config=GEMINI_GENERATION_CONFIG
-                            )
-                        elif os.path.exists(image_path):
-                            try:
-                                # Load and verify image file
-                                img = Image.open(image_path)
-                                
-                                # Verify it's a valid image (prevents malicious files)
-                                img.verify()
-                                
-                                # Reopen after verify (verify closes the file)
-                                img = Image.open(image_path)
-                                
-                                # Optional: Check image dimensions for reasonable size
-                                if img.width > 10000 or img.height > 10000:
-                                    logger.warning(f"Image dimensions too large: {img.width}x{img.height}")
-                                    response = model.generate_content(
-                                        f"{system_prompt}\n\n{user_prompt}",
-                                        generation_config=GEMINI_GENERATION_CONFIG
-                                    )
-                                else:
-                                    # Add instruction for image analysis
-                                    vision_prompt = f"{system_prompt}\n\n{user_prompt}\n\nIMPORTANT: Read the attached image to understand the user's technical problem or error screenshot, then provide a solution based on both the image and the text."
-                                    
-                                    # Generate response with image
-                                    response = model.generate_content(
-                                        [vision_prompt, img],
-                                        generation_config=GEMINI_GENERATION_CONFIG
-                                    )
-                                    
-                                    logger.info(f"AI response generated with image analysis for {attachment_filename}")
-                            except Exception as img_error:
-                                logger.error(f"Error processing image for AI: {img_error}")
-                                # Fall back to text-only if image processing fails
+                    elif os.path.exists(image_path):
+                        try:
+                            # Load and verify image file
+                            img = Image.open(image_path)
+                            
+                            # Verify it's a valid image (prevents malicious files)
+                            img.verify()
+                            
+                            # Reopen after verify (verify closes the file)
+                            img = Image.open(image_path)
+                            
+                            # Optional: Check image dimensions for reasonable size
+                            if img.width > 10000 or img.height > 10000:
+                                logger.warning(f"Image dimensions too large: {img.width}x{img.height}")
                                 response = model.generate_content(
                                     f"{system_prompt}\n\n{user_prompt}",
                                     generation_config=GEMINI_GENERATION_CONFIG
                                 )
-                        else:
-                            # Image file not found, use text only
-                            logger.warning(f"Image file not found: {image_path}")
+                            else:
+                                # Add instruction for image analysis
+                                vision_prompt = f"{system_prompt}\n\n{user_prompt}\n\nIMPORTANT: Read the attached image to understand the user's technical problem or error screenshot, then provide a solution based on both the image and the text."
+                                
+                                # Generate response with image
+                                response = model.generate_content(
+                                    [vision_prompt, img],
+                                    generation_config=GEMINI_GENERATION_CONFIG
+                                )
+                                
+                                logger.info(f"AI response generated with image analysis for {attachment_filename}")
+                        except Exception as img_error:
+                            logger.error(f"Error processing image for AI: {img_error}")
+                            # Fall back to text-only if image processing fails
                             response = model.generate_content(
                                 f"{system_prompt}\n\n{user_prompt}",
                                 generation_config=GEMINI_GENERATION_CONFIG
                             )
-                elif has_image and not PIL_AVAILABLE:
-                    # PIL not available, log warning and fall back to text-only
-                    logger.warning("PIL/Pillow not installed. Image analysis unavailable. Falling back to text-only response.")
-                    response = model.generate_content(
-                        f"{system_prompt}\n\n{user_prompt}",
-                        generation_config=GEMINI_GENERATION_CONFIG
-                    )
-                else:
-                    # No image - use text-only
-                    response = model.generate_content(
-                        f"{system_prompt}\n\n{user_prompt}",
-                        generation_config=GEMINI_GENERATION_CONFIG
-                    )
+                    else:
+                        # Image file not found, use text only
+                        logger.warning(f"Image file not found: {image_path}")
+                        response = model.generate_content(
+                            f"{system_prompt}\n\n{user_prompt}",
+                            generation_config=GEMINI_GENERATION_CONFIG
+                        )
+            elif has_image and not PIL_AVAILABLE:
+                # PIL not available, log warning and fall back to text-only
+                logger.warning("PIL/Pillow not installed. Image analysis unavailable. Falling back to text-only response.")
+                response = model.generate_content(
+                    f"{system_prompt}\n\n{user_prompt}",
+                    generation_config=GEMINI_GENERATION_CONFIG
+                )
+            else:
+                # No image - use text-only
+                response = model.generate_content(
+                    f"{system_prompt}\n\n{user_prompt}",
+                    generation_config=GEMINI_GENERATION_CONFIG
+                )
+            
+            # If successful, return the response
+            if response and response.text:
+                logger.info(f"AI response successfully generated using model: {model_name}")
+                return response.text.strip()
+            else:
+                logger.warning(f"Model {model_name} returned empty response")
+                return DEFAULT_AI_FALLBACK_MESSAGE
                 
-                # If successful, return the response
-                if response and response.text:
-                    logger.info(f"AI response successfully generated using model: {model_name}")
-                    return response.text.strip()
-                else:
-                    logger.warning(f"Model {model_name} returned empty response, trying next model...")
-                    continue
-                    
-            except Exception as model_error:
-                # Log the specific error for this model
-                error_msg = str(model_error).lower()
-                if '404' in error_msg or 'not found' in error_msg:
-                    logger.warning(f"Model {model_name} not found (404 error), trying fallback model...")
-                elif 'api key' in error_msg or 'authentication' in error_msg or 'unauthorized' in error_msg:
-                    logger.error(f"AI API authentication failed with model {model_name}. Check GEMINI_API_KEY: {model_error}")
-                    # Authentication errors won't be fixed by trying another model
-                    return DEFAULT_AI_FALLBACK_MESSAGE
-                elif 'quota' in error_msg or 'limit' in error_msg or 'exceeded' in error_msg:
-                    logger.error(f"AI API quota exceeded with model {model_name}: {model_error}")
-                    # Quota errors won't be fixed by trying another model
-                    return DEFAULT_AI_FALLBACK_MESSAGE
-                else:
-                    logger.warning(f"Error with model {model_name}: {model_error}, trying fallback model...")
-                
-                # Continue to next model in the fallback chain
-                continue
-        
-        # If all models failed, return default fallback
-        logger.error("All AI models failed to generate response")
-        return DEFAULT_AI_FALLBACK_MESSAGE
+        except Exception as model_error:
+            # Log the specific error for the model
+            error_msg = str(model_error).lower()
+            if '404' in error_msg or 'not found' in error_msg:
+                logger.error(f"Model {model_name} not found (404 error). Check model name: {model_error}")
+            elif 'api key' in error_msg or 'authentication' in error_msg or 'unauthorized' in error_msg:
+                logger.error(f"AI API authentication failed with model {model_name}. Check GEMINI_API_KEY: {model_error}")
+            elif 'quota' in error_msg or 'limit' in error_msg or 'exceeded' in error_msg:
+                logger.error(f"AI API quota exceeded with model {model_name}: {model_error}")
+            else:
+                logger.error(f"Error with model {model_name}: {model_error}")
+            
+            return DEFAULT_AI_FALLBACK_MESSAGE
             
     except Exception as e:
         # Catch-all error handler for unexpected errors
@@ -1640,6 +1630,59 @@ def draft_pulls():
                          tickets=pending_tickets,
                          total_pending=total_pending,
                          is_image_file=is_image_file)
+
+
+@app.route('/admin/console')
+@login_required
+def console():
+    """
+    Admin console page - view system diagnostics and health checks
+    Shows technical details that should not be visible to regular users
+    """
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('home'))
+    
+    # System health checks
+    system_status = {
+        'database': {'status': 'healthy', 'message': 'Database connection is active'},
+        'ai_api': {'status': 'unknown', 'message': 'AI API status unknown'},
+        'email': {'status': 'unknown', 'message': 'Email service status unknown'},
+        'webhook': {'status': 'unknown', 'message': 'Webhook service status unknown'}
+    }
+    
+    # Check database health
+    try:
+        # Simple database query to check connection
+        Ticket.query.first()
+        system_status['database'] = {'status': 'healthy', 'message': 'Database connection is active'}
+    except Exception as e:
+        system_status['database'] = {'status': 'error', 'message': f'Database error: {str(e)}'}
+    
+    # Check AI API configuration
+    if not GEMINI_API_KEY:
+        system_status['ai_api'] = {'status': 'not_configured', 'message': 'GEMINI_API_KEY not set'}
+    else:
+        system_status['ai_api'] = {'status': 'configured', 'message': f'Using model: models/gemini-2.5-flash'}
+    
+    # Check email configuration
+    if not SENDER_EMAIL or not EMAIL_PASSWORD:
+        system_status['email'] = {'status': 'not_configured', 'message': 'Email credentials not configured'}
+    else:
+        system_status['email'] = {'status': 'configured', 'message': f'SMTP configured: {SMTP_SERVER}:{SMTP_PORT}'}
+    
+    # Check webhook configuration
+    if not N8N_WEBHOOK_URL:
+        system_status['webhook'] = {'status': 'not_configured', 'message': 'N8N_WEBHOOK_URL not set'}
+    else:
+        system_status['webhook'] = {'status': 'configured', 'message': 'Webhook URL configured'}
+    
+    # Get recent tickets with submission details (last 10)
+    recent_tickets = Ticket.query.order_by(Ticket.created_at.desc()).limit(10).all()
+    
+    return render_template('console.html',
+                         system_status=system_status,
+                         recent_tickets=recent_tickets)
 
 
 @app.route('/admin/review_and_send/<int:ticket_id>', methods=['POST'])
