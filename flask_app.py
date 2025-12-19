@@ -1066,7 +1066,6 @@ def submit():
         }
         
         # Generate AI draft for admin review (background task)
-        ai_generation_success = False
         try:
             ai_draft = generate_ai_response(message, issue_type, name, attachment_filename)
             # AI response now always returns a string (either AI response or fallback message)
@@ -1075,18 +1074,17 @@ def submit():
             new_ticket.ai_suggestion = ai_draft
             db.session.commit()
             
-            # Check if AI actually generated content or returned fallback
-            if ai_draft == DEFAULT_AI_FALLBACK_MESSAGE:
-                submission_status['ai_status'] = 'fallback'
-                submission_status['ai_error'] = 'AI service unavailable - using fallback message'
-                logger.warning(f"AI fallback used for ticket {ticket_id}")
-            elif not GEMINI_API_KEY:
+            # Check API key status first, then check if AI actually generated content or returned fallback
+            if not GEMINI_API_KEY:
                 submission_status['ai_status'] = 'not_configured'
                 submission_status['ai_error'] = 'Gemini API key not configured'
                 logger.warning(f"AI not configured for ticket {ticket_id}")
+            elif ai_draft == DEFAULT_AI_FALLBACK_MESSAGE:
+                submission_status['ai_status'] = 'fallback'
+                submission_status['ai_error'] = 'AI service unavailable - using fallback message'
+                logger.warning(f"AI fallback used for ticket {ticket_id}")
             else:
                 submission_status['ai_status'] = 'success'
-                ai_generation_success = True
                 logger.info(f"AI draft saved successfully for ticket {ticket_id}")
         except Exception as e:
             submission_status['ai_status'] = 'error'

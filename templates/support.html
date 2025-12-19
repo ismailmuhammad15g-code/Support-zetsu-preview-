@@ -128,7 +128,7 @@
                 
                 <div class="status-actions">
                     <a href="{{ url_for('track') }}" class="btn btn-primary">Track Your Ticket</a>
-                    <button onclick="document.getElementById('statusChecklist').style.display='none'" class="btn btn-secondary">Dismiss</button>
+                    <button id="dismissStatusBtn" class="btn btn-secondary">Dismiss</button>
                 </div>
             </div>
             {% endif %}
@@ -426,6 +426,17 @@
             const submitBtn = document.getElementById('submitBtn');
             const submitBtnText = document.getElementById('submitBtnText');
             const submitBtnSpinner = document.getElementById('submitBtnSpinner');
+            
+            // Dismiss button for status checklist
+            const dismissBtn = document.getElementById('dismissStatusBtn');
+            if (dismissBtn) {
+                dismissBtn.addEventListener('click', function() {
+                    const statusChecklist = document.getElementById('statusChecklist');
+                    if (statusChecklist) {
+                        statusChecklist.style.display = 'none';
+                    }
+                });
+            }
             
             form.addEventListener('submit', function(e) {
                 // Show loading state
