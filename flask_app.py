@@ -862,7 +862,9 @@ def support():
     Support page route
     Renders the support form where users can submit tickets
     """
-    return render_template('support.html')
+    # Get submission status from session (if available)
+    submission_status = session.pop('submission_status', None)
+    return render_template('support.html', submission_status=submission_status)
 
 
 @app.route('/faq')
@@ -1053,7 +1055,18 @@ def submit():
         logger.info(f"Attachment: {attachment_filename}")
         logger.info("=" * 50)
         
+        # Initialize submission status tracking
+        submission_status = {
+            'ticket_created': True,
+            'ticket_id': ticket_id,
+            'ai_status': 'pending',
+            'ai_error': None,
+            'email_sent': False,
+            'webhook_sent': False
+        }
+        
         # Generate AI draft for admin review (background task)
+        ai_generation_success = False
         try:
             ai_draft = generate_ai_response(message, issue_type, name, attachment_filename)
             # AI response now always returns a string (either AI response or fallback message)
@@ -1061,12 +1074,28 @@ def submit():
             # Keep ai_suggestion for backward compatibility
             new_ticket.ai_suggestion = ai_draft
             db.session.commit()
-            logger.info(f"AI draft saved for ticket {ticket_id}")
+            
+            # Check if AI actually generated content or returned fallback
+            if ai_draft == DEFAULT_AI_FALLBACK_MESSAGE:
+                submission_status['ai_status'] = 'fallback'
+                submission_status['ai_error'] = 'AI service unavailable - using fallback message'
+                logger.warning(f"AI fallback used for ticket {ticket_id}")
+            elif not GEMINI_API_KEY:
+                submission_status['ai_status'] = 'not_configured'
+                submission_status['ai_error'] = 'Gemini API key not configured'
+                logger.warning(f"AI not configured for ticket {ticket_id}")
+            else:
+                submission_status['ai_status'] = 'success'
+                ai_generation_success = True
+                logger.info(f"AI draft saved successfully for ticket {ticket_id}")
         except Exception as e:
+            submission_status['ai_status'] = 'error'
+            submission_status['ai_error'] = str(e)
             logger.error(f"Error generating AI draft: {e}")
         
         # Send email notifications (confirmation to user, notification to admin)
         email_sent = send_email(email, name, message, issue_type, ticket_id, priority)
+        submission_status['email_sent'] = email_sent
         
         # Send to n8n webhook (non-blocking, won't crash app on failure)
         try:
@@ -1080,9 +1109,14 @@ def submit():
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }
             send_to_webhook(webhook_data)
+            submission_status['webhook_sent'] = True
         except Exception as webhook_error:
             # Log error but don't crash the app
             logger.warning(f"Webhook integration error (non-critical): {webhook_error}")
+            submission_status['webhook_sent'] = False
+        
+        # Store submission status in session for display
+        session['submission_status'] = submission_status
         
         if email_sent:
             flash(f'Thank you, {name}! Your ticket {ticket_id} has been submitted successfully. We\'ve sent a confirmation to {email}.', 'success')
