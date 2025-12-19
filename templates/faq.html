@@ -15,8 +15,14 @@
             <div class="navbar-brand">
                 <h1>ZetsuServ</h1>
             </div>
+            <!-- Hamburger Menu Button (Mobile) -->
+            <button class="hamburger-menu" id="hamburgerBtn" aria-label="Toggle navigation">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
             <!-- Navigation Links -->
-            <ul class="navbar-nav">
+            <ul class="navbar-nav" id="navbarNav">
                 <li><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
                 <li><a href="{{ url_for('support') }}" class="nav-link">Support</a></li>
                 <li><a href="{{ url_for('track') }}" class="nav-link">Track Ticket</a></li>
@@ -76,5 +82,8 @@
             <p>Powered by ZetsuServ AI</p>
         </div>
     </footer>
+
+    <!-- Hamburger Menu Script -->
+    <script src="{{ url_for('static', filename='hamburger-menu.js') }}"></script>
 </body>
 </html>
