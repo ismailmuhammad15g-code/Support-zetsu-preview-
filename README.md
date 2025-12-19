@@ -1093,8 +1093,8 @@ pip3 install --user -r requirements.txt
    - Get new key if needed from Google AI Studio
 
 4. **Model Unavailable:**
-   - gemini-pro model should be available
-   - If not, check Google AI Studio status
+   - Application uses gemini-1.5-flash model (updated from deprecated gemini-pro)
+   - If unavailable, check Google AI Studio status
    - Try again later if service is down
 
 **Best Practices:**

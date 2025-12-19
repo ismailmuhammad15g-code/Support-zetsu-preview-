@@ -692,6 +692,7 @@ Customer Message: {ticket_message}
 Please provide a helpful support response."""
         
         # Initialize Gemini model (same model for both text and vision)
+        # Updated to use gemini-1.5-flash (faster and currently supported)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         # Helper function to generate text-only response
@@ -768,7 +769,16 @@ Please provide a helpful support response."""
             return None
             
     except Exception as e:
-        logger.error(f"Error generating AI response: {e}")
+        # Enhanced error handling with specific messages for different error types
+        error_msg = str(e).lower()
+        if '404' in error_msg or 'not found' in error_msg:
+            logger.error(f"AI Model not found (404 error). Please check model name: {e}")
+        elif 'api key' in error_msg or 'authentication' in error_msg:
+            logger.error(f"AI API authentication failed. Check API key: {e}")
+        elif 'quota' in error_msg or 'limit' in error_msg:
+            logger.error(f"AI API quota exceeded or rate limited: {e}")
+        else:
+            logger.error(f"Error generating AI response: {e}")
         return None
 
 
