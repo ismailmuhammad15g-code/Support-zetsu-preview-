@@ -2,18 +2,35 @@
 
 A professional, enterprise-grade Flask web application for comprehensive support ticket management with **Hybrid Human-AI Support System**, styled with Microsoft Fluent Design System.
 
-![Version](https://img.shields.io/badge/version-3.4.0-blue)
+![Version](https://img.shields.io/badge/version-3.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.7+-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0.0-green)
-![AI](https://img.shields.io/badge/AI-Gemini%20Pro-orange)
+![AI](https://img.shields.io/badge/AI-Gemini%201.5%20Flash-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🎯 Features
 
-### 🆕 Latest Updates (v3.4.0) - Hybrid Human-AI Support System 🤖
+### 🆕 Latest Updates (v3.5.0) - Multimodal AI Vision Support 🖼️
+
+#### 🎨 Multimodal Vision Features
+- **👁️ AI Image Analysis** - AI can now read and analyze image attachments (screenshots, error messages, diagrams)
+- **🖼️ Vision-Powered Support** - Gemini 1.5 Flash analyzes images alongside text for comprehensive problem understanding
+- **📸 Smart Error Detection** - AI reads error screenshots to provide accurate technical solutions
+- **🔄 Automatic Image Processing** - Seamlessly handles .jpg, .png, .jpeg, .gif files with vision AI
+- **💡 Enhanced AI Drafts** - Every ticket gets an AI-drafted response, whether admin is available or not
+- **⚡ Model Upgrade** - Switched to Gemini 1.5 Flash for better free-tier stability and faster responses
+
+#### 🤖 AI Logic Improvements
+- **✅ Fixed Auto-Response** - AI now correctly responds when `is_available=False`
+- **🎯 Universal AI Drafts** - AI suggestions generated for ALL tickets regardless of admin status
+- **🛡️ Enhanced Error Handling** - Comprehensive try/except blocks prevent API failures from crashing the app
+- **📊 Better Logging** - Improved logging for AI operations and troubleshooting
+- **🔐 Secure Image Handling** - Proper file path validation and error recovery
+
+### Previous Updates (v3.4.0) - Hybrid Human-AI Support System 🤖
 
 #### 🧠 AI-Powered Features
-- **🤖 Gemini AI Integration** - Powered by Google's Gemini Pro for intelligent responses
+- **🤖 Gemini AI Integration** - Powered by Google's Gemini for intelligent responses
 - **🎯 Hybrid Support Logic** - AI automatically handles tickets when admin is unavailable
 - **💡 AI Response Suggestions** - Get AI-drafted responses for every ticket
 - **📊 Sentiment Analysis** - Auto-detects urgent/angry keywords and escalates priority
