@@ -1179,9 +1179,6 @@ def dashboard():
     # Check email configuration status
     email_configured = bool(SENDER_EMAIL and EMAIL_PASSWORD)
     
-    # Get admin availability status
-    admin_available = current_user.is_available if current_user.is_authenticated else True
-    
     return render_template('dashboard.html', 
                          tickets=tickets,
                          open_count=open_count,
@@ -1195,8 +1192,7 @@ def dashboard():
                          allowed_issue_types=ALLOWED_ISSUE_TYPES,
                          ticket_priorities=TICKET_PRIORITIES,
                          is_image_file=is_image_file,
-                         email_configured=email_configured,
-                         admin_available=admin_available)
+                         email_configured=email_configured)
 
 
 @app.route('/admin/toggle-status', methods=['POST'])
