@@ -111,6 +111,9 @@ GEMINI_GENERATION_CONFIG = {
     'max_output_tokens': 500,
 }
 
+# Default fallback message when AI is unavailable
+DEFAULT_AI_FALLBACK_MESSAGE = "AI suggestion unavailable at the moment. Please review manually."
+
 # Allowed issue types for validation
 ALLOWED_ISSUE_TYPES = {
     "Technical Support",
@@ -654,13 +657,10 @@ def generate_ai_response(ticket_message, issue_type, user_name, attachment_filen
     Returns:
         AI-generated response string or default fallback message if completely failed
     """
-    # Default fallback message for when AI is completely unavailable
-    DEFAULT_FALLBACK_MESSAGE = "AI suggestion unavailable at the moment. Please review manually."
-    
     # Check if API key is configured
     if not GEMINI_API_KEY:
         logger.warning("Gemini API key not configured")
-        return DEFAULT_FALLBACK_MESSAGE
+        return DEFAULT_AI_FALLBACK_MESSAGE
     
     try:
         # Get FAQ context
@@ -705,13 +705,6 @@ Please provide a helpful support response."""
                 # Initialize Gemini model
                 model = genai.GenerativeModel(model_name)
                 
-                # Helper function to generate text-only response
-                def generate_text_response():
-                    return model.generate_content(
-                        f"{system_prompt}\n\n{user_prompt}",
-                        generation_config=GEMINI_GENERATION_CONFIG
-                    )
-                
                 # Check if we have an image attachment for vision analysis
                 has_image = attachment_filename and is_image_file(attachment_filename)
                 
@@ -721,7 +714,10 @@ Please provide a helpful support response."""
                     # (should already be sanitized by secure_filename, but double-check)
                     if '..' in attachment_filename or '/' in attachment_filename or '\\' in attachment_filename:
                         logger.warning(f"Invalid attachment filename detected: {attachment_filename}")
-                        response = generate_text_response()
+                        response = model.generate_content(
+                            f"{system_prompt}\n\n{user_prompt}",
+                            generation_config=GEMINI_GENERATION_CONFIG
+                        )
                     else:
                         # Construct secure file path
                         image_path = os.path.join(UPLOAD_FOLDER, attachment_filename)
@@ -729,7 +725,10 @@ Please provide a helpful support response."""
                         # Verify path is within UPLOAD_FOLDER (additional security check)
                         if not os.path.abspath(image_path).startswith(os.path.abspath(UPLOAD_FOLDER)):
                             logger.warning(f"Path traversal attempt detected: {attachment_filename}")
-                            response = generate_text_response()
+                            response = model.generate_content(
+                                f"{system_prompt}\n\n{user_prompt}",
+                                generation_config=GEMINI_GENERATION_CONFIG
+                            )
                         elif os.path.exists(image_path):
                             try:
                                 # Load and verify image file
@@ -744,7 +743,10 @@ Please provide a helpful support response."""
                                 # Optional: Check image dimensions for reasonable size
                                 if img.width > 10000 or img.height > 10000:
                                     logger.warning(f"Image dimensions too large: {img.width}x{img.height}")
-                                    response = generate_text_response()
+                                    response = model.generate_content(
+                                        f"{system_prompt}\n\n{user_prompt}",
+                                        generation_config=GEMINI_GENERATION_CONFIG
+                                    )
                                 else:
                                     # Add instruction for image analysis
                                     vision_prompt = f"{system_prompt}\n\n{user_prompt}\n\nIMPORTANT: Read the attached image to understand the user's technical problem or error screenshot, then provide a solution based on both the image and the text."
@@ -759,18 +761,30 @@ Please provide a helpful support response."""
                             except Exception as img_error:
                                 logger.error(f"Error processing image for AI: {img_error}")
                                 # Fall back to text-only if image processing fails
-                                response = generate_text_response()
+                                response = model.generate_content(
+                                    f"{system_prompt}\n\n{user_prompt}",
+                                    generation_config=GEMINI_GENERATION_CONFIG
+                                )
                         else:
                             # Image file not found, use text only
                             logger.warning(f"Image file not found: {image_path}")
-                            response = generate_text_response()
+                            response = model.generate_content(
+                                f"{system_prompt}\n\n{user_prompt}",
+                                generation_config=GEMINI_GENERATION_CONFIG
+                            )
                 elif has_image and not PIL_AVAILABLE:
                     # PIL not available, log warning and fall back to text-only
                     logger.warning("PIL/Pillow not installed. Image analysis unavailable. Falling back to text-only response.")
-                    response = generate_text_response()
+                    response = model.generate_content(
+                        f"{system_prompt}\n\n{user_prompt}",
+                        generation_config=GEMINI_GENERATION_CONFIG
+                    )
                 else:
                     # No image - use text-only
-                    response = generate_text_response()
+                    response = model.generate_content(
+                        f"{system_prompt}\n\n{user_prompt}",
+                        generation_config=GEMINI_GENERATION_CONFIG
+                    )
                 
                 # If successful, return the response
                 if response and response.text:
@@ -788,11 +802,11 @@ Please provide a helpful support response."""
                 elif 'api key' in error_msg or 'authentication' in error_msg or 'unauthorized' in error_msg:
                     logger.error(f"AI API authentication failed with model {model_name}. Check GEMINI_API_KEY: {model_error}")
                     # Authentication errors won't be fixed by trying another model
-                    return DEFAULT_FALLBACK_MESSAGE
+                    return DEFAULT_AI_FALLBACK_MESSAGE
                 elif 'quota' in error_msg or 'limit' in error_msg or 'exceeded' in error_msg:
                     logger.error(f"AI API quota exceeded with model {model_name}: {model_error}")
                     # Quota errors won't be fixed by trying another model
-                    return DEFAULT_FALLBACK_MESSAGE
+                    return DEFAULT_AI_FALLBACK_MESSAGE
                 else:
                     logger.warning(f"Error with model {model_name}: {model_error}, trying fallback model...")
                 
@@ -801,12 +815,12 @@ Please provide a helpful support response."""
         
         # If all models failed, return default fallback
         logger.error("All AI models failed to generate response")
-        return DEFAULT_FALLBACK_MESSAGE
+        return DEFAULT_AI_FALLBACK_MESSAGE
             
     except Exception as e:
         # Catch-all error handler for unexpected errors
         logger.error(f"Unexpected error in AI generation: {e}", exc_info=True)
-        return DEFAULT_FALLBACK_MESSAGE
+        return DEFAULT_AI_FALLBACK_MESSAGE
 
 
 def generate_ai_suggestion(ticket_message, issue_type, user_name, attachment_filename=None):
