@@ -36,8 +36,27 @@
         <div class="container">
             <!-- Dashboard Header -->
             <div class="dashboard-header">
-                <h1 class="page-title">Admin Dashboard</h1>
-                <p class="page-subtitle">Manage and respond to support tickets</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div>
+                        <h1 class="page-title">Admin Dashboard</h1>
+                        <p class="page-subtitle">Manage and respond to support tickets</p>
+                    </div>
+                    
+                    <!-- Availability Toggle Switch -->
+                    <div class="availability-toggle-container">
+                        <label class="availability-label">
+                            <span class="availability-text" id="availabilityText">
+                                {{ 'Available' if admin_available else 'Unavailable' }}
+                            </span>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="availabilityToggle" 
+                                       {{ 'checked' if admin_available else '' }}>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                        <p class="availability-hint">Toggle to let AI handle tickets when unavailable</p>
+                    </div>
+                </div>
                 
                 <!-- Email Configuration Status -->
                 {% if not email_configured %}
@@ -247,12 +266,31 @@
                                         {% endif %}
                                         
                                         {% if ticket.status == 'Open' %}
+                                        
+                                        <!-- AI Suggestion Section (Admin Only) -->
+                                        {% if ticket.ai_suggestion %}
+                                        <div class="ticket-detail-section" style="background: #F3F2F1; border-left: 4px solid #0078D4; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
+                                            <h4 style="color: #0078D4; margin-bottom: 12px;">🤖 AI Suggested Response:</h4>
+                                            <div class="ai-suggestion-display" id="ai-suggestion-{{ ticket.id }}" style="color: #323130; line-height: 1.6; white-space: pre-wrap;">{{ ticket.ai_suggestion }}</div>
+                                            <button type="button" class="btn btn-secondary" onclick="useAISuggestion({{ ticket.id }})" style="margin-top: 12px;">
+                                                ✨ Use AI Suggestion
+                                            </button>
+                                        </div>
+                                        {% elif ticket.ai_responded %}
+                                        <div class="ticket-detail-section" style="background: #E3F2FD; border-left: 4px solid #107C10; padding: 16px; border-radius: 4px; margin-bottom: 16px;">
+                                            <p style="color: #107C10; margin: 0;">
+                                                <strong>✓ AI Already Responded:</strong> This ticket was auto-resolved by the AI assistant when you were unavailable.
+                                            </p>
+                                        </div>
+                                        {% endif %}
+                                        
                                         <div class="ticket-detail-section">
                                             <h4>Send Reply:</h4>
                                             <form method="POST" action="{{ url_for('reply_ticket', ticket_id=ticket.id) }}" class="reply-form">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <textarea 
                                                     name="admin_reply" 
+                                                    id="reply-textarea-{{ ticket.id }}"
                                                     class="form-textarea" 
                                                     rows="4" 
                                                     placeholder="Type your response here..."
@@ -566,6 +604,74 @@
                 });
             {% endif %}
         {% endwith %}
+    </script>
+
+    <!-- Availability Toggle and AI Suggestion Scripts -->
+    <script>
+        // Availability Toggle Handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggle = document.getElementById('availabilityToggle');
+            const availabilityText = document.getElementById('availabilityText');
+            
+            if (toggle) {
+                toggle.addEventListener('change', function() {
+                    const isChecked = this.checked;
+                    
+                    // Show loading state
+                    availabilityText.textContent = 'Updating...';
+                    toggle.disabled = true;
+                    
+                    // Get CSRF token
+                    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                    
+                    // Send AJAX request
+                    fetch('{{ url_for("toggle_admin_status") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({})
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update text
+                            availabilityText.textContent = data.is_available ? 'Available' : 'Unavailable';
+                            showToast(data.message, 'success');
+                        } else {
+                            // Revert toggle on error
+                            toggle.checked = !isChecked;
+                            availabilityText.textContent = !isChecked ? 'Available' : 'Unavailable';
+                            showToast(data.error || 'Failed to update status', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        // Revert toggle on error
+                        toggle.checked = !isChecked;
+                        availabilityText.textContent = !isChecked ? 'Available' : 'Unavailable';
+                        showToast('Network error. Please try again.', 'error');
+                        console.error('Error:', error);
+                    })
+                    .finally(() => {
+                        toggle.disabled = false;
+                    });
+                });
+            }
+        });
+        
+        // Use AI Suggestion Function
+        function useAISuggestion(ticketId) {
+            const suggestionDiv = document.getElementById('ai-suggestion-' + ticketId);
+            const textarea = document.getElementById('reply-textarea-' + ticketId);
+            
+            if (suggestionDiv && textarea) {
+                const suggestionText = suggestionDiv.textContent;
+                textarea.value = suggestionText;
+                textarea.focus();
+                showToast('AI suggestion loaded into reply field', 'success');
+            }
+        }
     </script>
 </body>
 </html>
