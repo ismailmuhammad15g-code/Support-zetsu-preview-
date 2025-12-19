@@ -11,6 +11,9 @@
     <!-- Toast Notification Container -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <!-- Hidden CSRF token for AJAX requests -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="container">
@@ -46,11 +49,11 @@
                     <div class="availability-toggle-container">
                         <label class="availability-label">
                             <span class="availability-text" id="availabilityText">
-                                {{ 'Available' if admin_available else 'Unavailable' }}
+                                {{ 'Available' if current_user.is_available else 'Unavailable' }}
                             </span>
                             <div class="toggle-switch">
                                 <input type="checkbox" id="availabilityToggle" 
-                                       {{ 'checked' if admin_available else '' }}>
+                                       {% if current_user.is_available %}checked{% endif %}>
                                 <span class="toggle-slider"></span>
                             </div>
                         </label>
@@ -653,7 +656,9 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            // Update text
+                            // Update checkbox state to match server response
+                            toggle.checked = data.is_available;
+                            // Update text to match server response
                             availabilityText.textContent = data.is_available ? 'Available' : 'Unavailable';
                             showToast(data.message, 'success');
                         } else {
