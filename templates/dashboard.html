@@ -406,10 +406,27 @@
                             </button>
                             
                             <div id="mobile-reply-{{ ticket.id }}" class="mobile-reply-form" style="display: none;">
+                                
+                                <!-- AI Suggestion for Mobile -->
+                                {% if ticket.ai_suggestion %}
+                                <div style="background: #F3F2F1; border-left: 4px solid #0078D4; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+                                    <strong style="color: #0078D4;">🤖 AI Suggested Response:</strong>
+                                    <div id="ai-suggestion-mobile-{{ ticket.id }}" style="margin-top: 8px; font-size: 13px; line-height: 1.5;">{{ ticket.ai_suggestion }}</div>
+                                    <button type="button" class="btn btn-secondary" onclick="useAISuggestionMobile({{ ticket.id }})" style="margin-top: 8px; width: 100%; font-size: 13px;">
+                                        ✨ Use AI Suggestion
+                                    </button>
+                                </div>
+                                {% elif ticket.ai_responded %}
+                                <div style="background: #E3F2FD; border-left: 4px solid #107C10; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+                                    <strong style="color: #107C10;">✓ AI Already Responded</strong>
+                                </div>
+                                {% endif %}
+                                
                                 <form method="POST" action="{{ url_for('reply_ticket', ticket_id=ticket.id) }}">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <textarea 
                                         name="admin_reply" 
+                                        id="reply-textarea-mobile-{{ ticket.id }}"
                                         class="form-textarea" 
                                         rows="4" 
                                         placeholder="Type your response here..."
@@ -664,6 +681,19 @@
         function useAISuggestion(ticketId) {
             const suggestionDiv = document.getElementById('ai-suggestion-' + ticketId);
             const textarea = document.getElementById('reply-textarea-' + ticketId);
+            
+            if (suggestionDiv && textarea) {
+                const suggestionText = suggestionDiv.textContent;
+                textarea.value = suggestionText;
+                textarea.focus();
+                showToast('AI suggestion loaded into reply field', 'success');
+            }
+        }
+        
+        // Use AI Suggestion Function (Mobile)
+        function useAISuggestionMobile(ticketId) {
+            const suggestionDiv = document.getElementById('ai-suggestion-mobile-' + ticketId);
+            const textarea = document.getElementById('reply-textarea-mobile-' + ticketId);
             
             if (suggestionDiv && textarea) {
                 const suggestionText = suggestionDiv.textContent;
