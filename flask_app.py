@@ -92,16 +92,19 @@ EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD', '')
 N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', '')
 
 # Gemini AI Configuration
-# IMPORTANT: Default API key is for DEMO/TESTING ONLY
+# IMPORTANT: GEMINI_API_KEY must be set as an environment variable
 # For production, set your own API key via environment variable:
 # export GEMINI_API_KEY=your-api-key-here
 # Get a free API key at: https://makersuite.google.com/app/apikey
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyBYpMnBd1UMuPDvskn9-ss3LpWkUBdWmR0')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
+        logger.info("Gemini API configured successfully")
     except Exception as e:
-        logger.warning(f"Failed to configure Gemini API: {e}")
+        logger.error(f"Failed to configure Gemini API: {e}")
+else:
+    logger.warning("GEMINI_API_KEY environment variable is not set. AI features will be unavailable.")
 
 # Gemini AI generation configuration
 GEMINI_GENERATION_CONFIG = {
