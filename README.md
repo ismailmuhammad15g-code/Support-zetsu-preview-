@@ -1005,6 +1005,88 @@ pip3 install --user -r requirements.txt
 # Reload web app
 ```
 
+### AI Integration Issues (New in v3.4.0)
+
+**Issue:** AI not responding when admin is unavailable
+
+**Solution:**
+1. **Check API Key Configuration:**
+   - Verify `GEMINI_API_KEY` is set (default demo key is included)
+   - For production, get your own key from Google AI Studio
+   - Set via environment variable: `export GEMINI_API_KEY=your-key`
+
+2. **Check Admin Availability Status:**
+   - Login to admin dashboard
+   - Look for the availability toggle in the header
+   - Ensure it's set to "Unavailable" to trigger AI responses
+   - Try toggling it and check the toast notification
+
+3. **Check Logs:**
+   - Look for AI-related log messages in console
+   - Errors will be logged with details
+   - Common issues: API rate limits, network errors
+
+**Issue:** Availability toggle not working / redirect loops
+
+**Solution:**
+- This should NOT happen as we use AJAX/JSON responses
+- Check browser console for JavaScript errors (F12)
+- Clear browser cache (Ctrl+Shift+R or Cmd+Shift+R)
+- Verify CSRF token is present in forms
+- Check network tab for failed requests
+
+**Issue:** AI suggestions not appearing
+
+**Solution:**
+1. Verify ticket was created after v3.4.0 implementation
+2. Check ticket has `ai_suggestion` column in database
+3. If migrating from old database:
+   ```bash
+   # Delete old database (backup first!)
+   cp support_tickets.db support_tickets.db.backup
+   rm support_tickets.db
+   # Restart app - new schema will be created
+   ```
+
+**Issue:** Sentiment analysis not escalating priority
+
+**Solution:**
+- Sentiment analysis runs during ticket submission
+- Keywords checked: urgent, angry, critical, emergency, ASAP, immediately, etc.
+- Verify message contains these keywords
+- Priority auto-escalates to "High" only during initial submission
+- Existing tickets are not retroactively updated
+
+**Issue:** Gemini API errors or empty responses
+
+**Solution:**
+1. **Rate Limiting:**
+   - Free tier has limits (60 requests/minute)
+   - Wait a moment and try again
+   - For production, upgrade to paid tier
+
+2. **Network Issues:**
+   - Check internet connectivity
+   - Verify firewall allows HTTPS to googleapis.com
+   - PythonAnywhere free tier may have restrictions
+
+3. **Invalid API Key:**
+   - Verify key is correct and active
+   - Check for extra spaces or quotes
+   - Get new key if needed from Google AI Studio
+
+4. **Model Unavailable:**
+   - gemini-pro model should be available
+   - If not, check Google AI Studio status
+   - Try again later if service is down
+
+**Best Practices:**
+- Test AI features in development first
+- Monitor API usage to stay within limits
+- Set up error logging for production
+- Consider caching AI responses
+- Have human fallback for critical issues
+
 ## 📦 Dependencies
 
 ### Core
@@ -1029,10 +1111,126 @@ pip3 install --user -r requirements.txt
 - **python-dotenv** (1.0.0) - Environment variables
 - **Pillow** (10.1.0) - Image processing
 - **gunicorn** (21.2.0) - WSGI server
+- **google-generativeai** (0.3.2) - Google Gemini AI SDK (New in v3.4.0)
 
 ### Development (Optional)
 - **pytest** (7.4.3) - Testing framework
 - **pytest-flask** (1.3.0) - Flask testing utilities
+
+## 🚀 Quick Start Guide: AI Features (v3.4.0)
+
+### For Admins
+
+**Setting Your Availability:**
+1. Login to admin dashboard
+2. Look for the toggle switch in the top-right header
+3. Toggle to "Unavailable" when you're offline/busy
+4. AI will automatically handle new tickets
+5. Toggle back to "Available" when you return
+
+**Using AI Suggestions:**
+1. Open any ticket in the dashboard
+2. Look for the "🤖 AI Suggested Response" section
+3. Review the AI-generated draft
+4. Click "✨ Use AI Suggestion" to load it
+5. Edit as needed and send
+
+**Understanding AI Indicators:**
+- **Blue box with robot icon** = AI suggestion available
+- **Green box with checkmark** = AI already auto-responded
+- **"[AI Assistant Response]" prefix** = Response was AI-generated
+
+### For Users
+
+**Getting Instant Help:**
+- Submit a ticket when admin is unavailable
+- AI responds automatically with helpful information
+- Response is based on FAQ knowledge base
+- Receive email with AI response (if configured)
+
+**Urgent Issues:**
+- Use keywords: urgent, critical, emergency, ASAP
+- Ticket is automatically escalated to High Priority
+- Admin is notified regardless of availability status
+
+### How It Works
+
+**Hybrid Logic:**
+```
+New Ticket Submitted
+    ↓
+Check Admin Availability
+    ↓
+├─ Admin Available → Notification Only
+│                    (AI suggestion generated for admin)
+│
+└─ Admin Unavailable → AI Auto-Response
+                        (Ticket marked resolved with AI reply)
+```
+
+**Sentiment Analysis:**
+```
+Ticket Message
+    ↓
+Scan for Keywords
+    ↓
+├─ Urgent Keywords Found → Escalate to High Priority
+│                           Notify admin immediately
+│
+└─ Normal Message → Regular Priority
+                     Follow availability logic
+```
+
+### Configuration
+
+**Minimal Setup (Demo):**
+```bash
+# Just run the app - demo API key is included
+python3 flask_app.py
+```
+
+**Production Setup:**
+```bash
+# Get your own API key from Google AI Studio
+export GEMINI_API_KEY=your-api-key-here
+
+# Optional: Configure email for notifications
+export SENDER_EMAIL=your-email@gmail.com
+export EMAIL_PASSWORD=your-app-password
+
+# Run the app
+python3 flask_app.py
+```
+
+### Testing AI Features
+
+**Test Availability Toggle:**
+1. Login as admin
+2. Toggle availability switch
+3. Check toast notification appears
+4. Verify no redirect/refresh occurs
+5. Status should persist across page loads
+
+**Test AI Auto-Response:**
+1. Set admin to "Unavailable"
+2. Submit a test ticket (from incognito/different browser)
+3. Check ticket in dashboard
+4. Should show green "AI Already Responded" indicator
+5. Check email for AI response (if configured)
+
+**Test AI Suggestions:**
+1. Set admin to "Available"
+2. Submit a test ticket
+3. Login to dashboard
+4. Open ticket details
+5. Should see blue "AI Suggested Response" box
+6. Click "Use AI Suggestion" to test
+
+**Test Sentiment Analysis:**
+1. Submit ticket with "URGENT! Critical issue!"
+2. Check dashboard
+3. Ticket should show "High" priority badge
+4. Works regardless of admin availability
 
 ## 🤝 Contributing
 

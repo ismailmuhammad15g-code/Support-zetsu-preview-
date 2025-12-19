@@ -84,6 +84,10 @@ EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD', '')
 N8N_WEBHOOK_URL = os.environ.get('N8N_WEBHOOK_URL', '')
 
 # Gemini AI Configuration
+# IMPORTANT: Default API key is for DEMO/TESTING ONLY
+# For production, set your own API key via environment variable:
+# export GEMINI_API_KEY=your-api-key-here
+# Get a free API key at: https://makersuite.google.com/app/apikey
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyBYpMnBd1UMuPDvskn9-ss3LpWkUBdWmR0')
 if GEMINI_API_KEY:
     try:
@@ -618,98 +622,6 @@ def detect_sentiment(message):
     return len(detected) > 0, detected
 
 
-def generate_ai_response(ticket_message, issue_type, user_name):
-    """
-    Generate AI response using Gemini API
-    
-    Args:
-        ticket_message: User's support ticket message
-        issue_type: Type of issue submitted
-        user_name: Name of the user
-    
-    Returns:
-        AI-generated response string or None if failed
-    """
-    if not GEMINI_API_KEY:
-        logger.warning("Gemini API key not configured")
-        return None
-    
-    try:
-        # Get FAQ context
-        faq_context = get_faq_context()
-        
-        # Build system prompt
-        system_prompt = f"""You are a professional customer support AI assistant for ZetsuServ Support Portal.
-
-Your role:
-- Provide helpful, empathetic, and professional responses to customer inquiries
-- Use the FAQ knowledge base to answer common questions accurately
-- Keep responses concise but comprehensive (2-4 paragraphs)
-- Be friendly and reassuring
-- If you don't know something, acknowledge it and suggest contacting human support
-
-FAQ Knowledge Base:
-{faq_context}
-
-Guidelines:
-- Address the customer by name
-- Acknowledge their issue with empathy
-- Provide clear, actionable solutions when possible
-- End with an offer for further assistance
-- Use professional but friendly tone
-"""
-        
-        # Build user prompt
-        user_prompt = f"""Customer Name: {user_name}
-Issue Type: {issue_type}
-Customer Message: {ticket_message}
-
-Please provide a helpful support response."""
-        
-        # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-pro')
-        
-        # Generate response
-        response = model.generate_content(
-            f"{system_prompt}\n\n{user_prompt}",
-            generation_config={
-                'temperature': 0.7,
-                'top_p': 0.9,
-                'top_k': 40,
-                'max_output_tokens': 500,
-            }
-        )
-        
-        if response and response.text:
-            return response.text.strip()
-        else:
-            logger.warning("Gemini API returned empty response")
-            return None
-            
-    except Exception as e:
-        logger.error(f"Error generating AI response: {e}")
-        return None
-
-
-def generate_ai_suggestion(ticket_message, issue_type, user_name):
-    """
-    Generate AI suggestion for admin (non-auto-sent)
-    This is always generated for admin to see as a draft
-    
-    Args:
-        ticket_message: User's support ticket message
-        issue_type: Type of issue submitted
-        user_name: Name of the user
-    
-    Returns:
-        AI-generated suggestion string or None if failed
-    """
-    # Use the same function but with different context
-    return generate_ai_response(ticket_message, issue_type, user_name)
-
-# ========================================
-# ROUTES
-# ========================================
 def generate_ai_response(ticket_message, issue_type, user_name):
     """
     Generate AI response using Gemini API
